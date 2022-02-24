@@ -7,8 +7,8 @@
 [ext_resource path="res://fonts/OpenSans-Semibold.tres" type="DynamicFont" id=5]
 
 [sub_resource type="StyleBoxFlat" id=1]
-content_margin_left = 9.0
-content_margin_right = 9.0
+content_margin_left = 6.0
+content_margin_right = 6.0
 content_margin_top = 6.0
 content_margin_bottom = 6.0
 bg_color = Color( 0.18, 0.207, 0.279, 1 )
@@ -19,8 +19,8 @@ border_width_bottom = 1
 border_color = Color( 0.141176, 0.160784, 0.215686, 1 )
 
 [sub_resource type="StyleBoxFlat" id=2]
-content_margin_left = 9.0
-content_margin_right = 9.0
+content_margin_left = 6.0
+content_margin_right = 6.0
 content_margin_top = 6.0
 content_margin_bottom = 6.0
 bg_color = Color( 0.15, 0.1725, 0.2325, 1 )
@@ -31,8 +31,8 @@ border_width_bottom = 1
 border_color = Color( 0.41, 0.61, 0.91, 1 )
 
 [sub_resource type="StyleBoxFlat" id=3]
-content_margin_left = 9.0
-content_margin_right = 9.0
+content_margin_left = 6.0
+content_margin_right = 6.0
 content_margin_top = 6.0
 content_margin_bottom = 6.0
 bg_color = Color( 0.15, 0.1725, 0.2325, 1 )
@@ -43,8 +43,8 @@ border_width_bottom = 1
 border_color = Color( 0.4, 0.4225, 0.4825, 1 )
 
 [sub_resource type="StyleBoxFlat" id=4]
-content_margin_left = 9.0
-content_margin_right = 9.0
+content_margin_left = 6.0
+content_margin_right = 6.0
 content_margin_top = 6.0
 content_margin_bottom = 6.0
 bg_color = Color( 0.15, 0.1725, 0.2325, 1 )
@@ -55,8 +55,8 @@ border_width_bottom = 1
 border_color = Color( 0.125, 0.14375, 0.19375, 1 )
 
 [sub_resource type="StyleBoxFlat" id=5]
-content_margin_left = 9.0
-content_margin_right = 9.0
+content_margin_left = 6.0
+content_margin_right = 6.0
 content_margin_top = 6.0
 content_margin_bottom = 6.0
 bg_color = Color( 0.15, 0.1725, 0.2325, 1 )
@@ -169,8 +169,8 @@ image = SubResource( 1508 )
 size = Vector2( 40, 16 )
 
 [sub_resource type="StyleBoxFlat" id=21]
-content_margin_left = 9.0
-content_margin_right = 9.0
+content_margin_left = 6.0
+content_margin_right = 6.0
 content_margin_top = 6.0
 content_margin_bottom = 6.0
 bg_color = Color( 0.15, 0.1725, 0.2325, 1 )
@@ -3871,7 +3871,7 @@ data = {
 
 [sub_resource type="ImageTexture" id=592]
 image = SubResource( 1769 )
-size = Vector2( 24, 24 )
+size = Vector2( 14, 14 )
 
 [sub_resource type="Image" id=1770]
 data = {
@@ -9373,8 +9373,8 @@ border_width_right = 1
 border_color = Color( 0.1, 0.115, 0.155, 1 )
 
 [sub_resource type="StyleBoxFlat" id=1435]
-content_margin_left = 15.0
-content_margin_right = 15.0
+content_margin_left = 10.0
+content_margin_right = 10.0
 content_margin_top = 7.0
 content_margin_bottom = 7.0
 bg_color = Color( 0.15, 0.1725, 0.2325, 1 )
@@ -9385,8 +9385,8 @@ border_color = Color( 0.125, 0.14375, 0.19375, 1 )
 expand_margin_bottom = 1.0
 
 [sub_resource type="StyleBoxFlat" id=1436]
-content_margin_left = 15.0
-content_margin_right = 15.0
+content_margin_left = 10.0
+content_margin_right = 10.0
 content_margin_top = 7.0
 content_margin_bottom = 7.0
 bg_color = Color( 0.35, 0.374375, 0.439375, 1 )
@@ -9754,10 +9754,10 @@ content_margin_bottom = 6.0
 bg_color = Color( 0.14902, 0.172549, 0.231373, 1 )
 
 [sub_resource type="StyleBoxFlat" id=1473]
-content_margin_left = 12.0
-content_margin_right = 12.0
-content_margin_top = 12.0
-content_margin_bottom = 12.0
+content_margin_left = 8.0
+content_margin_right = 8.0
+content_margin_top = 8.0
+content_margin_bottom = 10.0
 bg_color = Color( 0.2, 0.23, 0.31, 1 )
 border_width_left = 1
 border_width_top = 1
@@ -9831,8 +9831,8 @@ border_width_bottom = 1
 border_color = Color( 0.1, 0.115, 0.155, 1 )
 
 [sub_resource type="StyleBoxFlat" id=1482]
-content_margin_left = 15.0
-content_margin_right = 15.0
+content_margin_left = 10.0
+content_margin_right = 10.0
 content_margin_top = 7.0
 content_margin_bottom = 7.0
 bg_color = Color( 0.18, 0.207, 0.279, 1 )
@@ -10011,16 +10011,16 @@ content_margin_top = 12.0
 content_margin_bottom = 12.0
 bg_color = Color( 0.2, 0.23, 0.31, 1 )
 border_width_left = 1
-border_width_top = 36
+border_width_top = 24
 border_width_right = 1
 border_width_bottom = 1
 border_color = Color( 0.35, 0.374375, 0.439375, 1 )
-expand_margin_top = 36.0
+expand_margin_top = 16.0
 shadow_color = Color( 0, 0, 0, 0.3 )
 shadow_size = 6
 
 [sub_resource type="DynamicFont" id=1501]
-size = 14
+size = 13
 extra_spacing_top = -3
 extra_spacing_bottom = -3
 font_data = ExtResource( 1 )
@@ -11134,7 +11134,7 @@ Tree/styles/selected_focus = SubResource( 1471 )
 Tree/styles/title_button_hover = SubResource( 1489 )
 Tree/styles/title_button_normal = SubResource( 1489 )
 Tree/styles/title_button_pressed = SubResource( 1489 )
-VBoxContainer/constants/separation = 6
+VBoxContainer/constants/separation = 4
 VScrollBar/icons/decrement = SubResource( 1457 )
 VScrollBar/icons/decrement_highlight = SubResource( 1457 )
 VScrollBar/icons/increment = SubResource( 1457 )
@@ -11154,9 +11154,9 @@ VSplitContainer/constants/separation = 12
 VSplitContainer/icons/grabber = SubResource( 668 )
 VSplitContainer/styles/bg = SubResource( 1499 )
 WindowDialog/colors/title_color = Color( 0.8, 0.8075, 0.8275, 1 )
-WindowDialog/constants/close_h_ofs = 33
-WindowDialog/constants/close_v_ofs = 30
-WindowDialog/constants/title_height = 36
+WindowDialog/constants/close_h_ofs = 24
+WindowDialog/constants/close_v_ofs = 10
+WindowDialog/constants/title_height = 24
 WindowDialog/fonts/title_font = null
 WindowDialog/icons/close = SubResource( 592 )
 WindowDialog/icons/close_highlight = SubResource( 592 )
