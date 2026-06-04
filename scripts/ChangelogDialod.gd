@@ -7,6 +7,7 @@ const _PR_URL = {
 	"eod": "https://api.github.com/search/issues?q=repo%3AAtomicFox556/Cataclysm-EOD",
 	"tish": "https://api.github.com/search/issues?q=repo%3ACataclysm-TISH-team/Cataclysm-TISH/",
 	"tlg": "https://api.github.com/search/issues?q=repo%3ACataclysm-TLG/Cataclysm-TLG",
+	"ccb": "https://api.github.com/search/issues?q=repo%3ALYHGLYTX/Cataclysm-Cleanwater-Bomb",
 }
 
 @onready var _pullRequests := $PullRequests
@@ -87,6 +88,8 @@ func process_pr_data(data):
 			game_title = "Cataclysm: There Is Still Hope"
 		"tlg":
 			game_title = "Cataclysm: The Last Generation"
+		"ccb":
+			game_title = "Cataclysm: Cleanwater Bomb"
 		_:
 			game_title = "{BUG!!}"
 	

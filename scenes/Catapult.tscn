@@ -77,8 +77,8 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 tooltip_text = "tooltip_game"
-selected = 0
-item_count = 5
+selected = 5
+item_count = 6
 popup/item_0/text = "Cataclysm: Dark Days Ahead"
 popup/item_0/id = 0
 popup/item_1/text = "Cataclysm: Bright Nights"
@@ -89,6 +89,8 @@ popup/item_3/text = "Cataclysm: There Is Still Hope"
 popup/item_3/id = 3
 popup/item_4/text = "Cataclysm: The Last Generation"
 popup/item_4/id = 4
+popup/item_5/text = "Cataclysm: Cleanwater Bomb"
+popup/item_5/id = 5
 
 [node name="GameInfoBox" type="HBoxContainer" parent="MainLayout"]
 unique_name_in_owner = true
@@ -1180,6 +1182,8 @@ script = ExtResource("5")
 
 [node name="HTTPRequest_TLG" type="HTTPRequest" parent="ReleaseManager"]
 
+[node name="HTTPRequest_CCB" type="HTTPRequest" parent="ReleaseManager"]
+
 [node name="ReleaseInstaller" type="Node" parent="."]
 unique_name_in_owner = true
 script = ExtResource("9")
@@ -1297,6 +1301,7 @@ script = ExtResource("34")
 [connection signal="request_completed" from="ReleaseManager/HTTPRequest_EOD" to="ReleaseManager" method="_on_request_completed_eod"]
 [connection signal="request_completed" from="ReleaseManager/HTTPRequest_TISH" to="ReleaseManager" method="_on_request_completed_tish"]
 [connection signal="request_completed" from="ReleaseManager/HTTPRequest_TLG" to="ReleaseManager" method="_on_request_completed_tlg"]
+[connection signal="request_completed" from="ReleaseManager/HTTPRequest_CCB" to="ReleaseManager" method="_on_request_completed_ccb"]
 [connection signal="operation_finished" from="ReleaseInstaller" to="." method="_on_ReleaseInstaller_operation_finished"]
 [connection signal="operation_started" from="ReleaseInstaller" to="." method="_on_ReleaseInstaller_operation_started"]
 [connection signal="mod_deletion_finished" from="ModManager" to="." method="_on_mod_operation_finished"]

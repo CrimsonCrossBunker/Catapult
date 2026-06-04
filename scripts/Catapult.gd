@@ -70,6 +70,8 @@ func assign_localized_text() -> void:
 		%GameDescText.text = tr("desc_tish")
 	elif game == "tlg":
 		%GameDescText.text = tr("desc_tlg")
+	elif game == "ccb":
+		%GameDescText.text = tr("desc_ccb")
 
 
 func load_ui_theme(theme_file: String) -> void:
@@ -161,6 +163,9 @@ func _on_GamesList_item_selected(index: int) -> void:
 		4:
 			Settings.store("game", "tlg")
 			%GameDescText.text = tr("desc_tlg")
+		5:
+			Settings.store("game", "ccb")
+			%GameDescText.text = tr("desc_ccb")
 	
 	%TabbedLayout.current_tab = 0
 	apply_game_choice()
@@ -353,7 +358,7 @@ func apply_game_choice() -> void:
 	var game = Settings.read("game")
 	var channel = Settings.read("channel")
 	
-	if (game == "dda") or (game == "bn"):
+	if (game == "dda") or (game == "bn") or (game == "ccb"):
 		%ExperimentalSwitch.disabled = false
 		%StableSwitch.disabled = false
 		if channel == "stable":
@@ -388,6 +393,10 @@ func apply_game_choice() -> void:
 		"tlg":
 			%GamesList.select(4)
 			%GameDescText.text = tr("desc_tlg")
+
+		"ccb":
+			%GamesList.select(5)
+			%GameDescText.text = tr("desc_ccb")
 	
 	if len(%ReleaseManager.releases[_get_release_key()]) == 0:
 		%ReleaseManager.fetch(_get_release_key())

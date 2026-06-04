@@ -25,4 +25,5 @@
 "tab_backups","备份"
 "tab_settings","设置"
 "desc_tlg","[b]Cataclysm: The Last Generation[/b]。人类将无法幸存，但你还没有收到通知。这个由 WormGirl 指导的 DDA 分支在整个游戏中进行了重大的重新平衡，重点放在生存和生活模拟上。生存是有意的，你的所有选择都很重要。探索这个几乎可信的近未来世界，拥有你可以建造的所有枪支、生物电子和木炭烟熏器，或者在尝试中死亡！"
+"desc_ccb","[b]Cataclysm:Cleanwater Bomb（大灾变：净化协议）[/b]是一款基于CDDA Commit221c786e7d实验版的分支。该分支主旨为兼顾真实性与游戏性，保留一定的CDDA风味的同时发展出自己的特色。本人支持有大量参考文献支撑的符合现实逻辑的改动，同时本人不支持与玩家对着干的改动，改动的同时要兼顾游戏性。"
 "msg_auto_scale_failsafe_triggered","检测到自动 UI 缩放的潜在不合理值：%s。强制缩放为 1.0。"

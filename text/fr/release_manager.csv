@@ -9,3 +9,4 @@
 "msg_invalid_fetch_func_param","ReleaseManager.fetch() a passé %s"
 "msg_fetching_releases_eod","Récupération des versions pour EOD Experimental..."
 "msg_fetching_releases_tish","Récupération des versions pour TISH Experimental..."
+"msg_fetching_releases_ccb","Fetching releases for CCB Experimental..."

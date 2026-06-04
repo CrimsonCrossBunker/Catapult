@@ -4,15 +4,16 @@ extends Node
 const _SETTINGS_FILENAME = "catapult_settings.json"
 
 const _HARDCODED_DEFAULTS = {
-	"game": "dda",
-	"channel": "stable",
+	"game": "ccb",
+	"channel": "experimental",
 	"active_install_dda": "",
 	"active_install_bn": "",
 	"active_install_eod": "",
 	"active_install_tish": "",
 	"active_install_tlg": "",
+	"active_install_ccb": "",
 	"update_current_when_installing": true,
-	"launcher_locale": "",
+	"launcher_locale": "zh",
 	"launcher_theme": "Godot_4.tres",
 	"window_state": {},
 	"print_tips_of_the_day": true,
@@ -83,8 +84,9 @@ func _write_to_file(data: Dictionary, path: String) -> void:
 	
 	var content = JSON.stringify(data, "    ")
 	var f := FileAccess.open(path, FileAccess.WRITE)
-	f.store_string(content)
-	f.close()
+	if f:
+		f.store_string(content)
+		f.close()
 
 
 func read(setting_name: String):

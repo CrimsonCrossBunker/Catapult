@@ -18,6 +18,8 @@ const _RELEASE_URLS = {
 		"https://api.github.com/repos/Cataclysm-TISH-team/Cataclysm-TISH/releases",
 	"tlg-experimental":
 		"https://api.github.com/repos/Cataclysm-TLG/Cataclysm-TLG/releases",
+	"ccb-experimental":
+		"https://api.github.com/repos/LYHGLYTX/Cataclysm-Cleanwater-Bomb/releases",
 }
 
 const _ASSET_FILTERS = {
@@ -60,6 +62,14 @@ const _ASSET_FILTERS = {
 	"tlg-experimental-win": {
 		"field": "name",
 		"substring": "ctlg-windows-tiles-x64",
+	},
+	"ccb-experimental-linux": {
+		"field": "name",
+		"substring": "ccb-linux-with-graphics-and-sounds-x64",
+	},
+	"ccb-experimental-win": {
+		"field": "name",
+		"substring": "ccb-windows-with-graphics-and-sounds-x64",
 	},
 }
 
@@ -320,6 +330,12 @@ const _BN_STABLE_WIN = [
 	}
 ]
 
+const _CCB_STABLE_LINUX = [
+]
+
+const _CCB_STABLE_WIN = [
+]
+
 var releases = {
 	"dda-stable": [],
 	"dda-experimental": [],
@@ -331,6 +347,8 @@ var releases = {
 	"tish-experimental": [],
 	"tlg-stable": [],
 	"tlg-experimental": [],
+	"ccb-stable": [],
+	"ccb-experimental": [],
 }
 
 
@@ -436,6 +454,20 @@ func _on_request_completed_tlg(result: int, response_code: int,
 	
 	emit_signal("done_fetching_releases")
 
+
+func _on_request_completed_ccb(result: int, response_code: int,
+		headers: PackedStringArray, body: PackedByteArray) -> void:
+	
+	Status.post(tr("msg_http_request_info") %
+			[result, response_code, headers], Enums.MSG_DEBUG)
+	
+	if result:
+		Status.post(tr("msg_releases_request_failed"), Enums.MSG_WARN)
+	else:
+		_parse_builds(body, releases["ccb-experimental"], _ASSET_FILTERS["ccb-experimental-" + _platform])
+	
+	emit_signal("done_fetching_releases")
+
 func _parse_builds(data: PackedByteArray, write_to: Array, filter: Dictionary) -> void:
 	
 	var json_conv := JSON.new()
@@ -502,5 +534,15 @@ func fetch(release_key: String) -> void:
 		"tlg-experimental":
 			Status.post(tr("msg_fetching_releases_tlg"))
 			_request_releases($HTTPRequest_TLG, "tlg-experimental")
+		"ccb-stable":
+			match _platform:
+				"linux":
+					releases["ccb-stable"] = _CCB_STABLE_LINUX
+				"win":
+					releases["ccb-stable"] = _CCB_STABLE_WIN
+			emit_signal("done_fetching_releases")
+		"ccb-experimental":
+			Status.post(tr("msg_fetching_releases_ccb"))
+			_request_releases($HTTPRequest_CCB, "ccb-experimental")
 		_:
 			Status.post(tr("msg_invalid_fetch_func_param") % release_key, Enums.MSG_ERROR)
