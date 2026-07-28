@@ -1,0 +1,12 @@
+"keys","pt"
+,
+"msg_no_tileset_dir","O diretório do tileset não existe: %s"
+"msg_deleting_tileset","Excluindo %s"
+"msg_tileset_not_found","Não foi possível encontrar o tileset chamado \""%s\"""
+"msg_installing_tileset","Instalando tileset \""%s\""..."
+"msg_reinstalling_tileset","Reinstalando tileset \""%s\""..."
+"msg_tileset_download_failed","Não foi possível baixar o arquivo do tileset."
+"msg_tileset_installed","Tileset instalado."
+"msg_tileset_extraction_error","Falha na extração do arquivo com código de saída: %s"
+"msg_tileset_extraction_failed","Diretório do tileset esperado '%s' não encontrado após a extração."
+"msg_tileset_extraction_debug","Diretório de extração: %s, Conteúdo: %s" 

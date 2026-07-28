@@ -1,0 +1,19 @@
+"keys","tr"
+,
+"lbl_installed_tilesets","Yüklü:"
+"lbl_avail_tilesets","İndirilebilir:"
+"cbtn_stock_tilesets","Standartları göster"
+"btn_delete_tilesets","Seçileni Sil"
+"btn_install_tilesets","Seçileni Yükle"
+"btn_reinstall_tileset","Seçileni Yeniden Yükle"
+,
+"tooltip_stock_tilesets","Listede gfx'ten tilesetleri göster. (Şimdilik her zaman işaretli)"
+"tooltip_delete_tilesets","Seçili tileseti oyun yüklemenizden kaldır."
+"tooltip_install_tilesets","Seçili tileseti indir ve oyun yüklemesine ekle."
+,
+"dlg_tileset_deletion_title","Tileset Silmeyi Onayla"
+"dlg_tileset_deletion_text","%s siliniyor."
+"dlg_tileset_manual_dl_title","Manuel İndirme Gerekli"
+"dlg_tileset_manual_dl_text","Bu tileset otomatik olarak indirilemez. Tarayıcınızda indirmek için Tamam'a tıklayın, sonra dosya seçimi iletişim kutusunda nereye kaydettinizi seçin."
+,
+"str_no_tileset_desc","Açıklama sağlanmadı."

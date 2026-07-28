@@ -7,14 +7,11 @@ signal backup_restoration_started
 signal backup_restoration_finished
 signal backup_deletion_started
 signal backup_deletion_finished
+signal backup_batch_deletion_started
+signal backup_batch_deletion_finished
 
-var available: Array:
-	get:
-		if not _available_backups:
-			refresh_available()
-		return _available_backups as Array
+var available = null setget , _get_available
 
-var _available_backups = null
 
 func backup_current(backup_name: String) -> void:
 	# Create a backup of the save dir for the current game.
@@ -22,13 +19,14 @@ func backup_current(backup_name: String) -> void:
 	Status.post(tr("msg_backing_up_saves") % backup_name)
 	emit_signal("backup_creation_started")
 
-	var dest_dir = Paths.save_backups.path_join(backup_name)
+	var dest_dir = Paths.save_backups.plus_file(backup_name)
+	var d = Directory.new()
 	
-	if not DirAccess.dir_exists_absolute(dest_dir):
-		DirAccess.make_dir_recursive_absolute(dest_dir)
+	if not d.dir_exists(dest_dir):
+		d.make_dir_recursive(dest_dir)
 		for world in FS.list_dir(Paths.savegames):
-			FS.zip(Paths.savegames, world, dest_dir.path_join(world + ".zip"))
-			await FS.zip_done
+			FS.zip(Paths.savegames, world, dest_dir.plus_file(world + ".zip"))
+			yield(FS, "zip_done")
 		
 		Status.post(tr("msg_backup_created"))
 	else:
@@ -40,7 +38,7 @@ func backup_current(backup_name: String) -> void:
 func get_save_summary(path: String) -> Dictionary:
 	# Get information about a game save directory (any directory containing one or more game worlds)
 	
-	if not DirAccess.dir_exists_absolute(path):
+	if not Directory.new().dir_exists(path):
 		return {}
 	
 	var summary = {
@@ -55,16 +53,24 @@ func get_save_summary(path: String) -> Dictionary:
 	return summary
 
 
+func _get_available() -> Array:
+	
+	if not available:
+		refresh_available()
+	
+	return available
+
+
 func refresh_available():
 
-	_available_backups = []
+	available = []
 	
-	if not DirAccess.dir_exists_absolute(Paths.save_backups):
+	if not Directory.new().dir_exists(Paths.save_backups):
 		return
 	
 	for backup in FS.list_dir(Paths.save_backups):
-		var path = Paths.save_backups.path_join(backup)
-		_available_backups.append(get_save_summary(path))
+		var path = Paths.save_backups.plus_file(backup)
+		available.append(get_save_summary(path))
 
 
 func restore(backup_index: int) -> void:
@@ -78,15 +84,15 @@ func restore(backup_index: int) -> void:
 	
 	emit_signal("backup_restoration_started")
 
-	if DirAccess.dir_exists_absolute(source_dir):
-		if DirAccess.dir_exists_absolute(dest_dir):
+	if Directory.new().dir_exists(source_dir):
+		if Directory.new().dir_exists(dest_dir):
 			FS.rm_dir(dest_dir)
-			await FS.rm_dir_done
+			yield(FS, "rm_dir_done")
 		
-		DirAccess.make_dir_absolute(dest_dir)
+		Directory.new().make_dir(dest_dir)
 		for world_zip in FS.list_dir(source_dir):
-			FS.extract(source_dir.path_join(world_zip), dest_dir)
-			await FS.extract_done
+			FS.extract(source_dir.plus_file(world_zip), dest_dir)
+			yield(FS, "extract_done")
 		
 		Status.post(tr("msg_backup_restored"))
 	else:
@@ -98,14 +104,36 @@ func restore(backup_index: int) -> void:
 func delete(backup_name: String) -> void:
 	# Delete a backup.
 	
-	var target_dir = Paths.save_backups.path_join(backup_name)
+	var target_dir = Paths.save_backups.plus_file(backup_name)
 	emit_signal("backup_deletion_started")
 
-	if DirAccess.dir_exists_absolute(target_dir):
+	if Directory.new().dir_exists(target_dir):
 		Status.post(tr("msg_deleting_backup") % backup_name)
 	
 		FS.rm_dir(target_dir)
-		await FS.rm_dir_done
+		yield(FS, "rm_dir_done")
 		Status.post(tr("msg_backup_deleted"))
 
 	emit_signal("backup_deletion_finished")
+
+
+func delete_multiple(backup_names: Array) -> void:
+	# Delete multiple backups.
+	
+	if backup_names.empty():
+		return
+	
+	emit_signal("backup_batch_deletion_started")
+	
+	Status.post(tr("msg_deleting_multiple_backups") % backup_names.size())
+	
+	for backup_name in backup_names:
+		var target_dir = Paths.save_backups.plus_file(backup_name)
+		
+		if Directory.new().dir_exists(target_dir):
+			Status.post(tr("msg_deleting_backup") % backup_name)
+			FS.rm_dir(target_dir)
+			yield(FS, "rm_dir_done")
+	
+	Status.post(tr("msg_multiple_backups_deleted") % backup_names.size())
+	emit_signal("backup_batch_deletion_finished")

@@ -1,32 +1,43 @@
 extends VBoxContainer
 
 
-# @onready var %SoundpackManager = $"/root/Catapult/Sound"
-# @onready var %InstalledSoundsList = $HBox/Installed/InstalledList
-# @onready var %AvailableSoundsList = $HBox/Downloadable/AvailableList
-# @onready var %DeleteSoundBtn = $HBox/Installed/BtnDelete
-# @onready var %InstallSoundBtn = $HBox/Downloadable/BtnInstall
-# @onready var %ConfirmDeleteSoundDlg = $ConfirmDelete
-# @onready var %ManualSoundDownloadDlg = $ConfirmManualDownload
-# @onready var %InstallFromFileDialog = $InstallFromFileDialog
-# @onready var %ShowStockSoundsSwitch = $HBox/Installed/ShowStock
+onready var _sound = $"/root/Catapult/Sound"
+onready var _installed_list = $HBox/Installed/InstalledList
+onready var _available_list = $HBox/Downloadable/AvailableList
+onready var _btn_delete = $HBox/Installed/BtnDelete
+onready var _btn_activate = $HBox/Installed/BtnActivate
+onready var _btn_install = $HBox/Downloadable/BtnInstall
+onready var _btn_play_sample = $HBox/Downloadable/BtnPlaySample
+onready var _audio_player = $"/root/Catapult/SampleAudioPlayer"
+onready var _dlg_confirm_del = $ConfirmDelete
+onready var _dlg_manual_dl = $ConfirmManualDownload
+onready var _dlg_file = $InstallFromFileDialog
+onready var _cbox_stock = $HBox/Installed/ShowStock
 
 var _installed_packs = []
 
 
 func refresh_installed() -> void:
 	
-	_installed_packs = %SoundpackManager.get_installed(Settings.read("show_stock_sound"))
+	_installed_packs = _sound.get_installed(Settings.read("show_stock_sound"))
+	var active_soundpack = _sound.get_active_soundpack()
 		
-	%InstalledSoundsList.clear()
+	_installed_list.clear()
 	for pack in _installed_packs:
-		%InstalledSoundsList.add_item(pack["name"])
+		var pack_name = pack["name"]
+		_installed_list.add_item(pack_name)
+		
 		var desc = ""
 		if pack["description"] == "":
 			desc = tr("str_no_sound_desc")
 		else:
 			desc = _break_up_string(pack["description"], 60)
-		%InstalledSoundsList.set_item_tooltip(%InstalledSoundsList.get_item_count() - 1, desc)
+		
+		# Add active status to tooltip
+		if pack_name == active_soundpack:
+			desc = "[ACTIVE] " + desc
+		
+		_installed_list.set_item_tooltip(_installed_list.get_item_count() - 1, desc)
 
 
 func _break_up_string(text: String, approx_width_chars: int) -> String:
@@ -48,15 +59,15 @@ func _break_up_string(text: String, approx_width_chars: int) -> String:
 
 func _populate_available() -> void:
 	
-	%AvailableSoundsList.clear()
-	for pack in %SoundpackManager.SOUNDPACKS:
-		%AvailableSoundsList.add_item(pack["name"])
+	_available_list.clear()
+	for pack in _sound.SOUNDPACKS:
+		_available_list.add_item(pack["name"])
 		
 		
-func _is_pack_installed(pack_name: String) -> bool:
+func _is_pack_installed(name: String) -> bool:
 	
 	for pack in _installed_packs:
-		if pack["name"] == pack_name:
+		if pack["name"] == name:
 			return true
 			
 	return false
@@ -64,14 +75,16 @@ func _is_pack_installed(pack_name: String) -> bool:
 
 func _on_Tabs_tab_changed(tab: int) -> void:
 	
-	if tab != 2:
+	if tab != 3:
 		return
 		
-	%ShowStockSoundsSwitch.button_pressed = Settings.read("show_stock_sound")
+	_cbox_stock.pressed = Settings.read("show_stock_sound")
 	
-	%DeleteSoundBtn.disabled = true
-	%InstallSoundBtn.disabled = true
-	%InstallSoundBtn.text = tr("btn_install_sound")
+	_btn_delete.disabled = true
+	_btn_activate.disabled = true
+	_btn_install.disabled = true
+	_btn_play_sample.disabled = true
+	_btn_install.text = tr("btn_install_sound")
 	
 	_populate_available()
 	refresh_installed()
@@ -85,84 +98,126 @@ func _on_ShowStock_toggled(button_pressed: bool) -> void:
 
 func _on_InstalledList_item_selected(index: int) -> void:
 	
-	if %InstalledSoundsList.disabled:
+	if _installed_list.disabled:
 		return  # https://github.com/godotengine/godot/issues/37277
 	
 	if len(_installed_packs) > 0:
-		%DeleteSoundBtn.disabled = _installed_packs[index]["is_stock"]
+		var pack = _installed_packs[index]
+		
+		_btn_delete.disabled = pack["is_stock"]
+		_btn_activate.disabled = false
 	else:
-		%DeleteSoundBtn.disabled = true
+		_btn_delete.disabled = true
+		_btn_activate.disabled = true
 
 
 func _on_BtnDelete_pressed() -> void:
 	
-	var pack_name = _installed_packs[%InstalledSoundsList.get_selected_items()[0]]["name"]
-	%ConfirmDeleteSoundDlg.dialog_text = tr("dlg_sound_deletion_text") % pack_name
-	%ConfirmDeleteSoundDlg.get_cancel_button().text = tr("btn_cancel")
-	%ConfirmDeleteSoundDlg.size = Vector2(200, 100)
-	%ConfirmDeleteSoundDlg.popup_centered()
+	var name = _installed_packs[_installed_list.get_selected_items()[0]]["name"]
+	_dlg_confirm_del.dialog_text = tr("dlg_sound_deletion_text") % name
+	_dlg_confirm_del.get_cancel().text = tr("btn_cancel")
+	_dlg_confirm_del.rect_size = Vector2(200, 100)
+	_dlg_confirm_del.popup_centered()
+
+
+func _on_BtnActivate_pressed() -> void:
+	
+	var selected_items = _installed_list.get_selected_items()
+	if len(selected_items) == 0:
+		return
+	
+	var pack = _installed_packs[selected_items[0]]
+	if _sound.set_active_soundpack(pack["name"]):
+		refresh_installed()
 
 
 func _on_ConfirmDelete_confirmed() -> void:
 	
-	%SoundpackManager.delete_pack(_installed_packs[%InstalledSoundsList.get_selected_items()[0]]["name"])
-	await %SoundpackManager.soundpack_deletion_finished
+	_sound.delete_pack(_installed_packs[_installed_list.get_selected_items()[0]]["name"])
+	yield(_sound, "soundpack_deletion_finished")
 	refresh_installed()
 	
-	if len(%InstalledSoundsList.get_selected_items()) == 0:
-		%DeleteSoundBtn.disabled = true
+	if len(_installed_list.get_selected_items()) == 0:
+		_btn_delete.disabled = true
+		_btn_activate.disabled = true
 
 
 func _on_AvailableList_item_selected(index: int) -> void:
 	
-	if %InstalledSoundsList.disabled:
+	if _installed_list.disabled:
 		return  # https://github.com/godotengine/godot/issues/37277
 	
-	%InstallSoundBtn.disabled = false
-	var pack_name = %SoundpackManager.SOUNDPACKS[index]["name"]
+	_btn_install.disabled = false
+	var pack_name = _sound.SOUNDPACKS[index]["name"]
 	if _is_pack_installed(pack_name):
-		%InstallSoundBtn.text = tr("btn_reinstall_sound")
+		_btn_install.text = tr("btn_reinstall_sound")
 	else:
-		%InstallSoundBtn.text = tr("btn_install_sound")
+		_btn_install.text = tr("btn_install_sound")
+	_btn_play_sample.disabled = false
 
 
 func _on_BtnInstall_pressed() -> void:
 	
-	var pack_index = %AvailableSoundsList.get_selected_items()[0]
-	var pack = %SoundpackManager.SOUNDPACKS[pack_index]
+	var pack_index = _available_list.get_selected_items()[0]
+	var pack = _sound.SOUNDPACKS[pack_index]
 	
 	if ("manual_download" in pack) and (pack["manual_download"] == true):
-		%ManualSoundDownloadDlg.size = Vector2(300, 150)
-		%ManualSoundDownloadDlg.get_cancel_button().text = tr("btn_cancel")
-		%ManualSoundDownloadDlg.popup_centered()
+		_dlg_manual_dl.rect_size = Vector2(300, 150)
+		_dlg_manual_dl.get_cancel().text = tr("btn_cancel")
+		_dlg_manual_dl.popup_centered()
 	else:
 		if _is_pack_installed(pack["name"]):
-			%SoundpackManager.install_pack(pack_index, null, true)
+			_sound.install_pack(pack_index, null, true)
 		else:
-			%SoundpackManager.install_pack(pack_index)
-		await %SoundpackManager.soundpack_installation_finished
+			_sound.install_pack(pack_index)
+		yield(_sound, "soundpack_installation_finished")
 		refresh_installed()
 
 
 func _on_ConfirmManualDownload_confirmed() -> void:
 	
-	var pack = %SoundpackManager.SOUNDPACKS[%AvailableSoundsList.get_selected_items()[0]]
+	var pack = _sound.SOUNDPACKS[_available_list.get_selected_items()[0]]
 	
 	OS.shell_open(pack["url"])
-	%InstallFromFileDialog.current_dir = Paths.own_dir
-	%InstallFromFileDialog.popup_centered_ratio(0.9)
+	_dlg_file.current_dir = Paths.own_dir
+	_dlg_file.popup_centered_ratio(0.9)
 	
 
 
 func _on_InstallFromFileDialog_file_selected(path: String) -> void:
 	
-	var index = %AvailableSoundsList.get_selected_items()[0]
-	var pack_name = %SoundpackManager.SOUNDPACKS[index]["name"]
+	var index = _available_list.get_selected_items()[0]
+	var name = _sound.SOUNDPACKS[index]["name"]
 	
-	if _is_pack_installed(pack_name):
-		%SoundpackManager.install_pack(index, path, true, true)
+	if _is_pack_installed(name):
+		_sound.install_pack(index, path, true, true)
 	else:
-		%SoundpackManager.install_pack(index, path, false, true)
+		_sound.install_pack(index, path, false, true)
 	
-	await %SoundpackManager.soundpack_installation_finished
+	yield(_sound, "soundpack_installation_finished")
 	refresh_installed()
+
+
+
+
+func _on_BtnPlaySample_pressed() -> void:
+	
+	var selected_items = _available_list.get_selected_items()
+	if len(selected_items) == 0:
+		return
+	
+	var pack_index = selected_items[0]
+	var pack = _sound.SOUNDPACKS[pack_index]
+	var pack_name = pack["name"]
+	# Handle special character in soundpack name and variants
+	if pack_name.begins_with("@"):
+		pack_name = "AtsSoundpack"
+	elif pack_name == "CC-Sounds-sfx-only":
+		pack_name = "CC-Sounds"
+	var sample_file = "res://materials/sound_samples/" + pack_name + "_combined.ogg"
+	
+	_sound.play_sample(sample_file, _audio_player)
+
+
+
+

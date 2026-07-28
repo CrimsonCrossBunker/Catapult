@@ -1,12 +1,11 @@
 "keys","zh"
 ,
-"window_title","Catapult — Cataclysm: DDA和BN的启动器"
-"str_welcome","欢迎来到Catapult！"
+"window_title","Dabdoob — Cataclysm: DDA和BN的启动器"
+"str_welcome","欢迎来到Dabdoob！"
 "str_tip_of_the_day","\n\n[u]小贴士：[/u]\n"
-"msg_unpacking_unzip","正在解压 unzip.exe..."
-"msg_unpacking_zip","正在解压 zip.exe..."
+"str_donor_of_the_day","\n\n[color=#f5c842][b]— Message from a donor —[/b][/color]\n"
 "msg_theme_load_error","无法加载主题 %s。"
-"debug_test","这是一条测试文本。"
+"debug_test","这是一个调试文本，用于测试翻译检索。"
 ,
 "tag_warning","警告"
 "tag_error","错误"
@@ -14,16 +13,44 @@
 ,
 "lbl_game","游戏："
 "desc_dda","[b]Cataclysm: Dark Days Ahead[/b] 是一款以世界末日为背景的回合制生存游戏。搜刮，探索，制造，建造，耕种，修理并改装载具，安装生化插件，变异，抵御[color=#009900]僵尸[/color]和无数其他怪物的攻击——一切尽在一个无限的，程序生成的世界中！"
-"desc_bn","[b]Cataclysm: Bright Nights[/b] 拒绝迂腐，拥抱[color=#ff3300]!!乐趣!![/color]。这一分支将游戏带回了它科幻roguelike游戏的初衷，并撤回了许多由DDA团队做出的备受争议的改动（容器，专精，冷冻和[color=#3b93f7][url=https://docs.cataclysmbn.org/game/changelog/]更多[/url][/color]）。更注重战斗，游戏平衡和游戏节奏。"
+"desc_bn","[b]Cataclysm: Bright Nights[/b] 拒绝迂腐，拥抱[color=#ff3300]!!乐趣!![/color]。这一分支将游戏带回了它科幻roguelike游戏的初衷，并撤回了许多由DDA团队做出的备受争议的改动（容器，专精，冷冻和[color=#3b93f7][url=https://docs.cataclysmbn.org/en/game/changelog/]更多[/url][/color]）。更注重战斗，游戏平衡和游戏节奏。"
 "desc_eod","[b]Cataclysm: Era of Decay[/b] 是DDA的一个分支，主要目标是尽可能多的玩家可访问的可配置性，而不完全删除任何原始游戏的功能或内容，并使游戏具有默认设置的现实性。 以[color=#ff3300]你[/color]想要的方式玩得开心。"
 "desc_tish","[b]Cataclysm: There Is Still Hope[/b] 是DDA的一个分支，专注于游戏的有趣高于一切，拒绝''现实主义或乐趣''和''真实或乐趣''的二分法。"
+"desc_tlg","[b]Cataclysm: The Last Generation[/b] 的主要目标是保留Cataclysm的深度和对合理性的尊重，同时完善它作为游戏一直做得最好的东西，将角色发展和平行人生模拟元素置于一个将考验您的生存技能的世界中。"
+"desc_ccb","[b]Cataclysm: Cleanwater Bomb[/b]（大灾变：清水炸弹，CCB）是由 CrimsonCrossBunker 社区维护、衍生自 DDA 的末日生存 Roguelike。"
 ,
 "tab_game","游戏"
 "tab_mods","模组"
 "tab_soundpacks","音效包"
+"tab_tilesets","图块集"
 "tab_fonts","字体"
 "tab_backups","备份"
 "tab_settings","设置"
-"desc_tlg","[b]Cataclysm: The Last Generation[/b]。人类将无法幸存，但你还没有收到通知。这个由 WormGirl 指导的 DDA 分支在整个游戏中进行了重大的重新平衡，重点放在生存和生活模拟上。生存是有意的，你的所有选择都很重要。探索这个几乎可信的近未来世界，拥有你可以建造的所有枪支、生物电子和木炭烟熏器，或者在尝试中死亡！"
-"desc_ccb","[b]Cataclysm:Cleanwater Bomb（大灾变：净化协议）[/b]是一款基于CDDA Commit221c786e7d实验版的分支。该分支主旨为兼顾真实性与游戏性，保留一定的CDDA风味的同时发展出自己的特色。本人支持有大量参考文献支撑的符合现实逻辑的改动，同时本人不支持与玩家对着干的改动，改动的同时要兼顾游戏性。"
-"msg_auto_scale_failsafe_triggered","检测到自动 UI 缩放的潜在不合理值：%s。强制缩放为 1.0。"
+"tab_about","关于"
+"about_app_title","Dabdoob - Cataclysm启动器"
+"about_app_desc","Dabdoob是一个继续开发现已废弃的Catapult启动器的启动器。它由一个人开发和维护。您可以在下面的链接中找到我的Discord和Github。
+
+如果您欣赏Cataclysm及其模组/图块集/音效包创作者的工作，不要忘记去看看他们，如果您欣赏我的工作，请考虑通过下面的链接进行捐赠！"
+"about_links","链接"
+"thank_you_title","感谢您下载Dabdoob！"
+"thank_you_message","感谢您安装Dabdoob！希望您喜欢它。
+
+这可能现在对您不太相关，但如果您感到沮丧、焦虑或对自己不确定，请向您爱的人、朋友或您信任的人寻求帮助。
+这不会让您成为负担。
+您现在的感受不是最终的，事情会变得更好。
+
+祝您度过愉快的一天，希望您能享受我的启动器。"
+"msg_extract_create_dir_failed","无法创建解压目录 %s（错误：%s）"
+"msg_extract_tool_not_found","未找到解压工具：%s"
+"msg_dmg_only_macos","DMG 文件只能在 macOS 上解压"
+"msg_mounting_dmg","正在挂载 DMG 文件：%s"
+"msg_dmg_mount_failed","挂载 DMG 文件失败（错误：%s）"
+"msg_dmg_mount_point_failed","解析 DMG 挂载点失败"
+"msg_copying_dmg_contents","正在从 %s 复制内容"
+"msg_unmounting_dmg","正在卸载 DMG 文件"
+"msg_dmg_unmount_warning","警告：卸载 DMG 失败（错误：%s）"
+"msg_no_executable_found_macos","在游戏目录中未找到可执行文件"
+"msg_fixing_executable_permissions","正在修复 %s 的可执行权限"
+"msg_chmod_failed","设置 %s 的可执行权限失败（错误：%s）"
+"msg_setting_working_dir","正在设置工作目录：%s"
+"msg_starting_macos_bundle","正在启动 macOS 应用包：%s"

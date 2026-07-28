@@ -1,0 +1,69 @@
+name: Sign and package macOS app
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to process (e.g. v1.0.0)
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  sign-and-package:
+    runs-on: macos-latest
+
+    steps:
+      - name: Download macOS asset from release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG=${{ github.event.release.tag_name || github.event.inputs.tag }}
+          echo "TAG=$TAG" >> $GITHUB_ENV
+          gh release download "$TAG" \
+            --pattern "Dabdoob-CCB-mac.app.zip" \
+            --repo "${{ github.repository }}"
+
+      - name: Unzip app bundle
+        run: ditto -x -k Dabdoob-CCB-mac.app.zip .
+
+      - name: Find and codesign app bundle
+        run: |
+          APP_PATH=$(find . -type d -name "*.app" -print -quit)
+          test -n "$APP_PATH"
+          echo "Found app at: $APP_PATH"
+          codesign --force --deep --sign - "$APP_PATH"
+          echo "APP_PATH=$APP_PATH" >> $GITHUB_ENV
+
+      - name: Build DMG
+        run: |
+          mkdir _dmg_tmp
+          cp -R "$APP_PATH" _dmg_tmp/
+          ln -s /Applications _dmg_tmp/Applications
+          hdiutil create \
+            -volname "Dabdoob CCB Edition" \
+            -srcfolder _dmg_tmp \
+            -ov \
+            -format UDZO \
+            Dabdoob-CCB-mac.dmg
+
+      - name: Upload DMG to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "$TAG" \
+            Dabdoob-CCB-mac.dmg \
+            --repo "${{ github.repository }}" \
+            --clobber
+
+      - name: Remove zip asset from release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete-asset "$TAG" \
+            Dabdoob-CCB-mac.app.zip \
+            --repo "${{ github.repository }}" \
+            --yes

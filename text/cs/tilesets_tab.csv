@@ -1,0 +1,19 @@
+"keys","cs"
+,
+"lbl_installed_tilesets","Nainstalované:"
+"lbl_avail_tilesets","Stáhnutelné:"
+"cbtn_stock_tilesets","Ukázat původní"
+"btn_delete_tilesets","Smazat vybrané"
+"btn_install_tilesets","Nainstalovat vybrané"
+"btn_reinstall_tileset","Přeinstalovat vybrané"
+,
+"tooltip_stock_tilesets","Ukázat tilesety z gfx na seznamu."
+"tooltip_delete_tilesets","Odstranit vybraný tileset z vaší herní instalace."
+"tooltip_install_tilesets","Stáhnout vybraný tileset a přidat ho do vaší herní instalace."
+,
+"dlg_tileset_deletion_title","Potvrdit smazání tilesetu"
+"dlg_tileset_deletion_text","Mažu %s."
+"dlg_tileset_manual_dl_title","Vyžadováno manuální stáhnutí"
+"dlg_tileset_manual_dl_text","Tento tileset nelze stáhnout automaticky. Klikněte na OK pro stažení v prohlížeči a pak v dialogu výběru souboru zvolte, kam jste ho uložili."
+,
+"str_no_tileset_desc","Žádný popis nebyl poskytnut." 

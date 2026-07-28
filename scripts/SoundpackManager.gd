@@ -69,8 +69,8 @@ const SOUNDPACKS = [
 		"internal_path": "Otopack-Mods-Updates-master/Otopack+ModsUpdates",
 	},
 	{
-		"name": "Otopack-BN-Mk-2",
-		"url": "https://github.com/NarandBD/Otopack-BN-Mk-2/archive/main.zip",
+		"name": "Otopack BN",
+		"url": "https://github.com/NarandBD/Otopack-BN-Mk-2/archive/refs/heads/main.zip",
 		"filename": "otopack-bn-mk2.zip",
 		"internal_path": "Otopack-BN-Mk-2-main/Otopack+ModsUpdates BN",
 	},
@@ -85,28 +85,29 @@ const SOUNDPACKS = [
 
 func parse_sound_dir(sound_dir: String) -> Array:
 	
-	if not DirAccess.dir_exists_absolute(sound_dir):
+	if not Directory.new().dir_exists(sound_dir):
 		Status.post(tr("msg_no_sound_dir") % sound_dir, Enums.MSG_ERROR)
 		return []
 	
 	var result = []
 	
 	for subdir in FS.list_dir(sound_dir):
-		var info = sound_dir.path_join(subdir).path_join("soundpack.txt")
-		if FileAccess.file_exists(info):
-			var f := FileAccess.open(info, FileAccess.READ)
+		var f = File.new()
+		var info = sound_dir.plus_file(subdir).plus_file("soundpack.txt")
+		if f.file_exists(info):
+			f.open(info, File.READ)
 			var lines = f.get_as_text().split("\n", false)
-			var pack_name = ""
-			var pack_desc = ""
+			var name = ""
+			var desc = ""
 			for line in lines:
 				if line.begins_with("VIEW: "):
-					pack_name = line.trim_prefix("VIEW: ")
+					name = line.trim_prefix("VIEW: ")
 				elif line.begins_with("DESCRIPTION: "):
-					pack_desc = line.trim_prefix("DESCRIPTION: ")
+					desc = line.trim_prefix("DESCRIPTION: ")
 			var item = {}
-			item["name"] = pack_name
-			item["description"] = pack_desc
-			item["location"] = sound_dir.path_join(subdir)
+			item["name"] = name
+			item["description"] = desc
+			item["location"] = sound_dir.plus_file(subdir)
 			result.append(item)
 			f.close()
 		
@@ -117,7 +118,7 @@ func get_installed(include_stock = false) -> Array:
 	
 	var packs = []
 	
-	if DirAccess.dir_exists_absolute(Paths.sound_user):
+	if Directory.new().dir_exists(Paths.sound_user):
 		packs.append_array(parse_sound_dir(Paths.sound_user))
 		for pack in packs:
 			pack["is_stock"] = false
@@ -131,25 +132,118 @@ func get_installed(include_stock = false) -> Array:
 	return packs
 
 
-func delete_pack(pack_name: String) -> void:
+func delete_pack(name: String) -> void:
 	
 	for pack in get_installed():
-		if pack["name"] == pack_name:
+		if pack["name"] == name:
 			emit_signal("soundpack_deletion_started")
 			Status.post(tr("msg_deleting_sound") % pack["location"])
 			FS.rm_dir(pack["location"])
-			await FS.rm_dir_done
+			yield(FS, "rm_dir_done")
 			emit_signal("soundpack_deletion_finished")
 			return
 			
-	Status.post(tr("msg_soundpack_not_found") % pack_name, Enums.MSG_ERROR)
+	Status.post(tr("msg_soundpack_not_found") % name, Enums.MSG_ERROR)
+
+
+func get_active_soundpack() -> String:
+	# Returns the name of the currently active soundpack from game options
+	
+	var options_file = Paths.config.plus_file("options.json")
+	
+	# Check if config directory and options file exist
+	if Paths.config == "" or not Directory.new().file_exists(options_file):
+		return ""
+	
+	var f = File.new()
+	if f.open(options_file, File.READ) != OK:
+		return ""
+	
+	var json = JSON.parse(f.get_as_text())
+	f.close()
+	
+	if json.error != OK or not (json.result is Array):
+		return ""
+	
+	# Find the SOUNDPACKS option (note: plural, not SOUNDPACK_NAME)
+	for option in json.result:
+		if option is Dictionary and "name" in option and option["name"] == "SOUNDPACKS":
+			if "value" in option:
+				return option["value"]
+	
+	return ""
+
+
+func set_active_soundpack(soundpack_name: String) -> bool:
+	# Sets the active soundpack in game options
+	
+	var options_file = Paths.config.plus_file("options.json")
+	
+	# Check if config directory exists
+	if Paths.config == "":
+		Status.post(tr("msg_no_config_dir"), Enums.MSG_ERROR)
+		return false
+	
+	# Ensure config directory exists
+	var d = Directory.new()
+	if not d.dir_exists(Paths.config):
+		var err = d.make_dir_recursive(Paths.config)
+		if err != OK:
+			Status.post(tr("msg_could_not_create_config_dir"), Enums.MSG_ERROR)
+			return false
+	
+	var game_options = []
+	
+	# Load existing options if file exists
+	if d.file_exists(options_file):
+		var f = File.new()
+		if f.open(options_file, File.READ) == OK:
+			var json = JSON.parse(f.get_as_text())
+			f.close()
+			
+			if json.error == OK and json.result is Array:
+				game_options = json.result
+	
+	# Convert "Basic" to "basic" (lowercase) for the stock soundpack
+	var value_to_write = soundpack_name
+	if soundpack_name == "Basic":
+		value_to_write = "basic"
+	
+	# Find and update the SOUNDPACKS option (note: plural, not SOUNDPACK_NAME)
+	var found = false
+	for option in game_options:
+		if option is Dictionary and "name" in option and option["name"] == "SOUNDPACKS":
+			option["value"] = value_to_write
+			found = true
+			break
+	
+	# If option doesn't exist, add it
+	if not found:
+		game_options.append({
+			"name": "SOUNDPACKS",
+			"value": value_to_write,
+			"type": "string"
+		})
+	
+	# Write updated options back to file
+	var f = File.new()
+	if f.open(options_file, File.WRITE) != OK:
+		Status.post(tr("msg_could_not_write_options"), Enums.MSG_ERROR)
+		return false
+	
+	f.store_string(JSON.print(game_options, "    "))
+	f.close()
+	
+	Status.post(tr("msg_soundpack_activated") % soundpack_name)
+	return true
 
 
 func install_pack(soundpack_index: int, from_file = null, reinstall = false, keep_archive = false) -> void:
 	
 	var pack = SOUNDPACKS[soundpack_index]
+	var game = Settings.read("game")
 	var sound_dir = Paths.sound_user
-	var tmp_dir = Paths.tmp_dir.path_join(pack["name"])
+	var tmp_dir = Paths.tmp_dir.plus_file(pack["name"])
 	var archive = ""
 	
 	emit_signal("soundpack_installation_started")
@@ -162,27 +256,68 @@ func install_pack(soundpack_index: int, from_file = null, reinstall = false, kee
 	if from_file:
 		archive = from_file
 	else:
-		archive = Paths.cache_dir.path_join(pack["filename"])
-		if Settings.read("ignore_cache") or not FileAccess.file_exists(archive):
+		archive = Paths.cache_dir.plus_file(pack["filename"])
+		if Settings.read("ignore_cache") or not Directory.new().file_exists(archive):
 			Downloader.download_file(pack["url"], Paths.cache_dir, pack["filename"])
-			await Downloader.download_finished
-		if not FileAccess.file_exists(archive):
+			yield(Downloader, "download_finished")
+		if not Directory.new().file_exists(archive):
 			Status.post(tr("msg_sound_download_failed"), Enums.MSG_ERROR)
 			emit_signal("soundpack_installation_finished")
 			return
 		
 	if reinstall:
-		FS.rm_dir(sound_dir + "/" + pack["name"])
-		await FS.rm_dir_done
+		FS.rm_dir(sound_dir.plus_file(pack["name"]))
+		yield(FS, "rm_dir_done")
 		
 	FS.extract(archive, tmp_dir)
-	await FS.extract_done
+	yield(FS, "extract_done")
 	if not keep_archive and not Settings.read("keep_cache"):
-		DirAccess.remove_absolute(archive)
-	FS.move_dir(tmp_dir + "/" + pack["internal_path"], sound_dir + "/" + pack["name"])
-	await FS.move_dir_done
+		Directory.new().remove(archive)
+	if FS.last_extract_result != 0:
+		if Directory.new().dir_exists(tmp_dir):
+			FS.rm_dir(tmp_dir)
+			yield(FS, "rm_dir_done")
+		emit_signal("soundpack_installation_finished")
+		return
+
+	FS.move_dir(tmp_dir.plus_file(pack["internal_path"]), sound_dir.plus_file(pack["name"]))
+	yield(FS, "move_dir_done")
+	
+	# On macOS, ensure proper permissions for the installed soundpack
+	if OS.get_name() == "OSX":
+		var installed_pack_path = sound_dir.plus_file(pack["name"])
+		var chmod_result = OS.execute("chmod", ["-R", "755", installed_pack_path], true)
+		if chmod_result != 0:
+			Status.post("Warning: Could not set soundpack directory permissions", Enums.MSG_WARNING)
+	
 	FS.rm_dir(tmp_dir)
-	await FS.rm_dir_done
+	yield(FS, "rm_dir_done")
 	
 	Status.post(tr("msg_sound_installed"))
 	emit_signal("soundpack_installation_finished")
+
+
+func play_sample(sample_path: String, audio_player: AudioStreamPlayer) -> void:
+	# Plays a sample audio file for a soundpack - plays once without looping
+	
+	var audio_file = load(sample_path)
+	
+	if audio_file == null:
+		Status.post(tr("No available preview for this soundpack"), Enums.MSG_ERROR)
+		return
+	
+	# Stop any currently playing audio
+	if audio_player.playing:
+		audio_player.stop()
+	
+	# Disable looping on the audio stream
+	if audio_file is AudioStream:
+		# For OGG Vorbis streams, disable looping
+		audio_file.loop = false
+	
+	# Set the audio stream and play it
+	audio_player.stream = audio_file
+	audio_player.bus = "Master"
+	audio_player.play()
+	Status.post("Playing sample...")
+

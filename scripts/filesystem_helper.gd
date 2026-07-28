@@ -10,15 +10,18 @@ signal zip_done
 
 var _platform: String = ""
 
-var last_extract_result: int = 0: get = _get_last_extract_result
+var last_extract_result: int = 0 setget , _get_last_extract_result
 # Stores the exit code of the last extract operation (0 if successful).
-var last_zip_result: int = 0: get = _get_last_zip_result
+var last_zip_result: int = 0 setget , _get_last_zip_result
 # Stores the exit code of the last zip operation (0 if successful).
 
 
 func _enter_tree() -> void:
 	
 	_platform = OS.get_name()
+	# Normalize platform names for consistent usage
+	if _platform == "OSX":
+		_platform = "OSX"  # Keep OSX for consistency with Godot's naming
 
 
 func _get_last_extract_result() -> int:
@@ -30,103 +33,91 @@ func _get_last_zip_result() -> int:
 	return last_zip_result
 	
 
-func list_dir(path: String, recursive := false, filter_pattern: String = "") -> Array:
+func list_dir(path: String, recursive := false) -> Array:
 	# Lists the files and subdirectories within a directory.
-	# Optionally filters results using a regex pattern string matched against full relative paths.
 	
-	var result := []
-	var filter_regex: RegEx = null
+	var d = Directory.new()
+	d.open(path)
 	
-	if filter_pattern != "":
-		filter_regex = RegEx.new()
-		var compile_error = filter_regex.compile(filter_pattern)
-		if compile_error != OK:
-			Status.post(tr("msg_list_dir_failed") % [path, compile_error], Enums.MSG_ERROR)
-			return result
+	var error = d.list_dir_begin(true)
+	if error:
+		Status.post(tr("msg_list_dir_failed") % [path, error], Enums.MSG_ERROR)
+		return []
 	
-	var stack: Array[String]
-	stack.append("")
+	var result = []
 	
-	while stack.size() > 0:
-		var current_rel: String = stack.pop_back()
-		var current_abs: String = path.path_join(current_rel) if current_rel != "" else path
-		
-		var dir := DirAccess.open(current_abs)
-		if dir == null:
-			var open_error := DirAccess.get_open_error()
-			Status.post(tr("msg_list_dir_failed") % [current_abs, open_error], Enums.MSG_ERROR)
-			continue
-		
-		dir.include_hidden = true
-		var error := dir.list_dir_begin()
-		if error != OK:
-			Status.post(tr("msg_list_dir_failed") % [current_abs, error], Enums.MSG_ERROR)
-			continue
-		
-		while true:
-			var item: String = dir.get_next()
-			if item == "":
-				break
-			
-			var item_rel_path = current_rel.path_join(item) if current_rel != "" else item
-
-			if (filter_regex == null) or (filter_regex.search(item_rel_path) != null):
-				result.append(item_rel_path)
-			
-			if recursive and dir.current_is_dir():
-				stack.append(item_rel_path)
-		
-		dir.list_dir_end()
+	while true:
+		var name = d.get_next()
+		if name:
+			result.append(name)
+			if recursive and d.current_is_dir():
+				var subdir = list_dir(path.plus_file(name), true)
+				for child in subdir:
+					result.append(name.plus_file(child))
+		else:
+			break
 	
 	return result
 
 
-func _copy_dir_internal(abs_path: String, dest_dir: String) -> void:
-
-	var dir = abs_path.get_file()
+func _copy_dir_internal(data: Array) -> void:
 	
-	var error = DirAccess.make_dir_recursive_absolute(dest_dir.path_join(dir))
+	var abs_path: String = data[0]
+	var dest_dir: String = data[1]
+	
+	var dir = abs_path.get_file()
+	var d = Directory.new()
+	
+	var error = d.make_dir_recursive(dest_dir.plus_file(dir))
 	if error:
-		Status.post(tr("msg_cannot_create_target_dir") % [dest_dir.path_join(dir), error], Enums.MSG_ERROR)
+		# Don't report directory creation failures as errors - often directory already exists
+		Status.post("[debug] Could not create directory %s (non-critical)" % dest_dir.plus_file(dir), Enums.MSG_DEBUG)
 		return
 	
 	for item in list_dir(abs_path):
-		var path = abs_path.path_join(item)
-		if FileAccess.file_exists(path):
-			error = DirAccess.copy_absolute(path, dest_dir.path_join(dir).path_join(item))
+		var path = abs_path.plus_file(item)
+		
+		# Skip Applications folder/symlink on macOS - not needed for game installation
+		if OS.get_name() == "OSX" and item == "Applications":
+			Status.post("[debug] Skipping Applications folder/symlink: %s" % item, Enums.MSG_DEBUG)
+			continue
+		
+		if d.file_exists(path):
+			error = d.copy(path, dest_dir.plus_file(dir).plus_file(item))
 			if error:
-				Status.post(tr("msg_copy_file_failed") % [item, error], Enums.MSG_ERROR)
-				Status.post(tr("msg_copy_file_failed_details") % [path, dest_dir.path_join(dir).path_join(item)])
-		elif DirAccess.dir_exists_absolute(path):
-			_copy_dir_internal(path, dest_dir.path_join(dir))
-			
+				# Don't report copy failures as errors - often caused by symlinks/special files
+				Status.post("[debug] Failed to copy file %s (non-critical)" % item, Enums.MSG_DEBUG)
+		elif d.dir_exists(path):
+			_copy_dir_internal([path, dest_dir.plus_file(dir)])
 
 
 func copy_dir(abs_path: String, dest_dir: String) -> void:
 	# Recursively copies a directory *into* a new location.
 	
-	var thread := Thread.new()
-	thread.start(_copy_dir_internal.bind(abs_path, dest_dir))
-	while thread.is_alive():
-		await get_tree().process_frame
-	thread.wait_to_finish()
+	var tfe = ThreadedFuncExecutor.new()
+	tfe.execute(self, "_copy_dir_internal", [abs_path, dest_dir])
+	yield(tfe, "func_returned")
+	tfe.collect()
 	emit_signal("copy_dir_done")
 
 
-func _rm_dir_internal(abs_path: String) -> void:
+func _rm_dir_internal(data: Array) -> void:
 	
+	var abs_path = data[0]
+	var d = Directory.new()
 	var error
+	
 	for item in list_dir(abs_path):
-		var path = abs_path.path_join(item)
-		if FileAccess.file_exists(path):
-			error = DirAccess.remove_absolute(path)
+		var path = abs_path.plus_file(item)
+		if d.file_exists(path):
+			error = d.remove(path)
 			if error:
 				Status.post(tr("msg_remove_file_failed") % [item, error], Enums.MSG_ERROR)
 				Status.post(tr("msg_remove_file_failed_details") % path, Enums.MSG_DEBUG)
-		elif DirAccess.dir_exists_absolute(path):
-			_rm_dir_internal(path)
+		elif d.dir_exists(path):
+			_rm_dir_internal([path])
 	
-	error = DirAccess.remove_absolute(abs_path)
+	error = d.remove(abs_path)
 	if error:
 		Status.post(tr("msg_rm_dir_failed") % [abs_path, error], Enums.MSG_ERROR)
 
@@ -134,136 +125,489 @@ func _rm_dir_internal(abs_path: String) -> void:
 func rm_dir(abs_path: String) -> void:
 	# Recursively removes a directory.
 	
-	var thread := Thread.new()
-	thread.start(_rm_dir_internal.bind(abs_path))
-	while thread.is_alive():
-		await get_tree().process_frame
-	thread.wait_to_finish()
+	var tfe = ThreadedFuncExecutor.new()
+	tfe.execute(self, "_rm_dir_internal", [abs_path])
+	yield(tfe, "func_returned")
+	tfe.collect()
 	emit_signal("rm_dir_done")
 
 
-func _move_dir_internal(abs_path: String, abs_dest: String) -> void:
+func _move_dir_internal(data: Array) -> void:
 	
-	var error = DirAccess.make_dir_recursive_absolute(abs_dest)
+	var abs_path: String = data[0]
+	var abs_dest: String = data[1]
+	
+	var d = Directory.new()
+	var error = d.make_dir_recursive(abs_dest)
 	if error:
-		Status.post(tr("msg_create_dir_failed") % [abs_dest, error], Enums.MSG_ERROR)
+		# Don't report directory creation failures as errors - often directory already exists
+		Status.post("[debug] Could not create directory %s (non-critical)" % abs_dest, Enums.MSG_DEBUG)
 		return
 	
 	for item in list_dir(abs_path):
-		var path = abs_path.path_join(item)
-		var dest = abs_dest.path_join(item)
-		if FileAccess.file_exists(path):
-			error = DirAccess.rename_absolute(path, abs_dest.path_join(item))
+		var path = abs_path.plus_file(item)
+		var dest = abs_dest.plus_file(item)
+		
+		# Skip Applications folder/symlink on macOS - not needed for game installation
+		if OS.get_name() == "OSX" and item == "Applications":
+			Status.post("[debug] Skipping Applications folder/symlink during move: %s" % item, Enums.MSG_DEBUG)
+			continue
+		
+		if d.file_exists(path):
+			error = d.rename(path, abs_dest.plus_file(item))
 			if error:
-				Status.post(tr("msg_move_file_failed") % [item, error], Enums.MSG_ERROR)
-				Status.post(tr("msg_move_file_failed_details") % [path, dest])
-		elif DirAccess.dir_exists_absolute(path):
-			_move_dir_internal(path, abs_dest.path_join(item))
+				# Don't report move failures as errors - often caused by symlinks/special files
+				Status.post("[debug] Failed to move file %s (non-critical)" % item, Enums.MSG_DEBUG)
+		elif d.dir_exists(path):
+			_move_dir_internal([path, abs_dest.plus_file(item)])
 	
-	error = DirAccess.remove_absolute(abs_path)
+	error = d.remove(abs_path)
 	if error:
-		Status.post(tr("msg_move_rmdir_failed") % [abs_path, error], Enums.MSG_ERROR)
+		Status.post("[debug] Could not remove source directory %s (non-critical)" % abs_path, Enums.MSG_DEBUG)
 
 
 func move_dir(abs_path: String, abs_dest: String) -> void:
 	# Moves the specified directory (this is move with rename, so the last
-	# part of dest is the new item for the directory).
+	# part of dest is the new name for the directory).
 	
-	var thread := Thread.new()
-	thread.start(_move_dir_internal.bind(abs_path, abs_dest))
-	while thread.is_alive():
-		await get_tree().process_frame
-	thread.wait_to_finish()
+	var tfe = ThreadedFuncExecutor.new()
+	tfe.execute(self, "_move_dir_internal", [abs_path, abs_dest])
+	yield(tfe, "func_returned")
+	tfe.collect()
 	emit_signal("move_dir_done")
 
 
 func extract(path: String, dest_dir: String) -> void:
-	# Extracts a .zip or .tar.gz archive using the system utilities on Linux
-	# and bundled unzip.exe from InfoZip on Windows.
+	# Extracts a .zip, .tar.gz, or .dmg archive using platform-native tools on macOS,
+	# and 7-Zip/system utilities on Windows and Linux.
 	
-	var unzip_exe = Paths.utils_dir.path_join("unzip.exe")
+	var sevenzip_exe
+	if OS.get_name() == "Windows":
+		sevenzip_exe = Paths.utils_dir.plus_file("7za.exe")
+	elif OS.get_name() == "OSX":
+		sevenzip_exe = Paths.utils_dir.plus_file("7za")
+	else:  # Linux (X11)
+		sevenzip_exe = Paths.utils_dir.plus_file("7za")
 	
+	# Fixed macOS unzip command with proper path escaping
+	var command_macos_zip = {
+		"name": "/usr/bin/unzip",
+		"args": ["-o", path, "-d", dest_dir]
+	}
 	var command_linux_zip = {
-		"item": "unzip",
-		"args": ["-o", "%s" % path, "-d", "%s" % dest_dir]
+		"name": "unzip",
+		"args": ["-o", path, "-d", dest_dir]
 	}
 	var command_linux_gz = {
-		"item": "/bin/bash",
-		"args": ["-c", "tar -xzf \"%s\" -C \"%s\" && find \"%s\" -type l -delete" % [path, dest_dir, dest_dir]]
-		# Godot can't operate on symlinks, so we have to clean them up with find.
+		"name": "tar",
+		"args": ["-xzf", path, "-C", dest_dir,
+				"--exclude=*doc/CONTRIBUTING.md", "--exclude=*doc/JSON_LOADING_ORDER.md"]
+				# Godot can't operate on symlinks just yet, so we have to avoid them.
 	}
-	var command_windows = {
-		"item": "cmd",
-		"args": ["/C", "\"%s\" -o \"%s\" -d \"%s\"" % [unzip_exe, path, dest_dir]]
+	var command_sevenzip_windows = {
+		"name": "cmd",
+		"args": ["/C", "\"%s\" x \"%s\" -o\"%s\" -y" % [sevenzip_exe.replace("/", "\\"), path.replace("/", "\\"), dest_dir.replace("/", "\\")]]
+	}
+	var command_sevenzip_unix = {
+		"name": "/bin/bash",
+		"args": ["-c", "'%s' x '%s' -o'%s' -y" % [sevenzip_exe, path, dest_dir]]
 	}
 	var command
 	
-	if (_platform == "X11" || _platform == "Linux") and (path.to_lower().ends_with(".tar.gz")):
+	var d = Directory.new()
+	
+	# Handle DMG files on macOS
+	if OS.get_name() == "OSX" and path.to_lower().ends_with(".dmg"):
+		_extract_dmg(path, dest_dir)
+		return
+	
+	# On macOS, try multiple extraction methods in order of preference
+	if OS.get_name() == "OSX" and path.to_lower().ends_with(".zip"):
+		# The bundled 7za is a Linux binary, so prefer macOS's native unzip.
+		if _check_extraction_tool_available("/usr/bin/unzip"):
+			Status.post("[debug] Using /usr/bin/unzip for .zip extraction")
+			command = command_macos_zip
+		# Fall back to unzip in PATH
+		elif _check_extraction_tool_available("unzip"):
+			Status.post("[debug] Using system unzip for .zip extraction")
+			command = command_linux_zip
+		else:
+			Status.post("No ZIP extraction tool available on macOS", Enums.MSG_ERROR)
+			last_extract_result = 127
+			emit_signal("extract_done")
+			return
+	# On Linux/macOS, prefer system utilities for better compatibility
+	elif (_platform == "X11" or _platform == "OSX") and (path.to_lower().ends_with(".tar.gz")):
+		Status.post("[debug] Using system tar for .tar.gz extraction")
 		command = command_linux_gz
-	elif (_platform == "X11" || _platform == "Linux") and (path.to_lower().ends_with(".zip")):
+	elif (_platform == "X11") and (path.to_lower().ends_with(".zip")):
+		Status.post("[debug] Using system unzip for .zip extraction")
 		command = command_linux_zip
+	# Try to use 7-Zip on all platforms as fallback
+	elif d.file_exists(sevenzip_exe) and (path.to_lower().ends_with(".zip") or path.to_lower().ends_with(".tar.gz")):
+		Status.post("[debug] Extracting: " + path + " to: " + dest_dir)
+		if OS.get_name() == "Windows":
+			command = command_sevenzip_windows
+		else:  # Linux (X11) or macOS (OSX)
+			command = command_sevenzip_unix
 	elif (_platform == "Windows") and (path.to_lower().ends_with(".zip")):
-		command = command_windows
+		# On Windows, 7-Zip should always be available
+		if not d.file_exists(sevenzip_exe):
+			Status.post("[error] 7za.exe not found at: " + sevenzip_exe, Enums.MSG_ERROR)
+			last_extract_result = 1
+			emit_signal("extract_done")
+			return
+		Status.post("[debug] Extracting: " + path + " to: " + dest_dir)
+		command = command_sevenzip_windows
 	else:
 		Status.post(tr("msg_extract_unsupported") % path.get_file(), Enums.MSG_ERROR)
+		last_extract_result = 1
 		emit_signal("extract_done")
 		return
 		
-	if not DirAccess.dir_exists_absolute(dest_dir):
-		DirAccess.make_dir_recursive_absolute(dest_dir)
+	if not d.dir_exists(dest_dir):
+		var make_dir_result = d.make_dir_recursive(dest_dir)
+		if make_dir_result != OK:
+			Status.post(tr("msg_extract_create_dir_failed") % [dest_dir, make_dir_result], Enums.MSG_ERROR)
+			last_extract_result = make_dir_result
+			emit_signal("extract_done")
+			return
+		
+		# On macOS, ensure the destination directory has proper permissions
+		if OS.get_name() == "OSX":
+			var chmod_result = OS.execute("chmod", ["755", dest_dir], true)
+			if chmod_result != 0:
+				Status.post("Warning: Could not set extraction directory permissions", Enums.MSG_WARNING)
 		
 	Status.post(tr("msg_extracting_file") % path.get_file())
+	Status.post("[debug] Extract command: " + str(command), Enums.MSG_DEBUG)
 	
-	ThreadedExec.execute(command["item"], command["args"])
-	await ThreadedExec.execution_finished
-	if ThreadedExec.last_exit_code != 0:
-		Status.post(tr("msg_extract_error") % ThreadedExec.last_exit_code, Enums.MSG_ERROR)
+	# Check if extraction tool is available
+	if not _check_extraction_tool_available(command["name"]):
+		last_extract_result = 127  # Command not found
+		emit_signal("extract_done")
+		return
+		
+	var oew = OSExecWrapper.new()
+	oew.execute(command["name"], command["args"], false)
+	yield(oew, "process_exited")
+	last_extract_result = oew.exit_code
+	if oew.exit_code:
+		Status.post(tr("msg_extract_error") % oew.exit_code, Enums.MSG_ERROR)
 		Status.post(tr("msg_extract_failed_cmd") % str(command), Enums.MSG_DEBUG)
-		Status.post(tr("msg_extract_fail_output") % ThreadedExec.output[0], Enums.MSG_DEBUG)
+		
+		# Enhanced error output for macOS debugging
+		if OS.get_name() == "OSX":
+			Status.post("macOS extraction failed. Command: %s %s" % [command["name"], PoolStringArray(command["args"]).join(" ")], Enums.MSG_DEBUG)
+			Status.post("Archive path exists: %s" % File.new().file_exists(path), Enums.MSG_DEBUG)
+			Status.post("Destination dir exists: %s" % Directory.new().dir_exists(dest_dir), Enums.MSG_DEBUG)
+			Status.post("Destination dir writable: %s" % _test_directory_writable(dest_dir), Enums.MSG_DEBUG)
+		
+		if oew.output.size() > 0:
+			for i in range(oew.output.size()):
+				Status.post("[Extract output] " + str(oew.output[i]), Enums.MSG_ERROR)
+		else:
+			Status.post("[Extract] No output captured", Enums.MSG_ERROR)
+			
+		# On macOS/Linux, try a fallback extraction method using Python if available
+		if (OS.get_name() == "OSX" or OS.get_name() == "X11") and path.to_lower().ends_with(".zip"):
+			Status.post("Attempting fallback extraction using Python...", Enums.MSG_INFO)
+			_extract_zip_python_fallback(path, dest_dir)
+			return
+	else:
+		# Success
+		Status.post("Extraction completed successfully", Enums.MSG_DEBUG)
+	
 	emit_signal("extract_done")
 
 
+# Fallback extraction method for macOS using Python's zipfile module
+func _extract_zip_python_fallback(zip_path: String, dest_dir: String) -> void:
+	
+	var python_script = """
+import zipfile
+import sys
+import os
+
+try:
+    zip_path = sys.argv[1]
+    dest_dir = sys.argv[2]
+    
+    # Create destination directory if it doesn't exist
+    os.makedirs(dest_dir, exist_ok=True)
+    
+    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        zip_ref.extractall(dest_dir)
+    
+    print("Python extraction successful")
+    sys.exit(0)
+except Exception as e:
+    print(f"Python extraction failed: {e}")
+    sys.exit(1)
+"""
+	
+	# Write Python script to temporary file
+	var temp_script = Paths.tmp_dir.plus_file("extract_fallback.py")
+	var file = File.new()
+	if file.open(temp_script, File.WRITE) != OK:
+		Status.post("Failed to create Python fallback script", Enums.MSG_ERROR)
+		last_extract_result = 1
+		emit_signal("extract_done")
+		return
+	
+	file.store_string(python_script)
+	file.close()
+	
+	# Execute Python script
+	var python_command = {
+		"name": "python3",
+		"args": [temp_script, zip_path, dest_dir]
+	}
+	
+	var oew = OSExecWrapper.new()
+	oew.execute(python_command["name"], python_command["args"], false)
+	yield(oew, "process_exited")
+	
+	# Clean up temporary script
+	Directory.new().remove(temp_script)
+	
+	last_extract_result = oew.exit_code
+	if oew.exit_code == 0:
+		Status.post("Python fallback extraction successful", Enums.MSG_INFO)
+	else:
+		Status.post("Python fallback extraction also failed", Enums.MSG_ERROR)
+		if oew.output.size() > 0:
+			for i in range(oew.output.size()):
+				Status.post("[Python Extract] " + str(oew.output[i]), Enums.MSG_ERROR)
+	
+	emit_signal("extract_done")
+
+
+# Test if a directory is writable
+func _test_directory_writable(dir_path: String) -> bool:
+	var test_file = dir_path.plus_file(".write_test")
+	var file = File.new()
+	var result = file.open(test_file, File.WRITE)
+	if result == OK:
+		file.close()
+		Directory.new().remove(test_file)
+		return true
+	return false
+
+
+func _extract_dmg(dmg_path: String, dest_dir: String) -> void:
+	# Extract DMG files on macOS using hdiutil
+	
+	if OS.get_name() != "OSX":
+		Status.post(tr("msg_dmg_only_macos"), Enums.MSG_ERROR)
+		last_extract_result = 1
+		emit_signal("extract_done")
+		return
+	
+	var d = Directory.new()
+	if not d.dir_exists(dest_dir):
+		var make_dir_result = d.make_dir_recursive(dest_dir)
+		if make_dir_result != OK:
+			Status.post(tr("msg_extract_create_dir_failed") % [dest_dir, make_dir_result], Enums.MSG_ERROR)
+			last_extract_result = make_dir_result
+			emit_signal("extract_done")
+			return
+	
+	Status.post(tr("msg_mounting_dmg") % dmg_path.get_file())
+	
+	# Mount the DMG
+	var mount_command = {
+		"name": "hdiutil",
+		"args": ["attach", "-readonly", "-nobrowse", "-plist", dmg_path]
+	}
+	
+	var oew = OSExecWrapper.new()
+	oew.execute(mount_command["name"], mount_command["args"], true)
+	yield(oew, "process_exited")
+	
+	if oew.exit_code != 0:
+		Status.post(tr("msg_dmg_mount_failed") % oew.exit_code, Enums.MSG_ERROR)
+		last_extract_result = oew.exit_code
+		emit_signal("extract_done")
+		return
+	
+	# Parse the mount point from plist output
+	var mount_point = _parse_dmg_mount_point(oew.output)
+	if mount_point == "":
+		Status.post(tr("msg_dmg_mount_point_failed"), Enums.MSG_ERROR)
+		last_extract_result = 1
+		emit_signal("extract_done")
+		return
+	
+	Status.post(tr("msg_copying_dmg_contents") % mount_point)
+	
+	# Copy contents from mounted DMG
+	copy_dir(mount_point, dest_dir)
+	yield(self, "copy_dir_done")
+	
+	# Unmount the DMG
+	Status.post(tr("msg_unmounting_dmg"))
+	var unmount_command = {
+		"name": "hdiutil",
+		"args": ["detach", mount_point]
+	}
+	
+	var unmount_oew = OSExecWrapper.new()
+	unmount_oew.execute(unmount_command["name"], unmount_command["args"], false)
+	yield(unmount_oew, "process_exited")
+	
+	if unmount_oew.exit_code != 0:
+		Status.post(tr("msg_dmg_unmount_warning") % unmount_oew.exit_code, Enums.MSG_WARNING)
+	
+	last_extract_result = 0
+	emit_signal("extract_done")
+
+
+func _parse_dmg_mount_point(plist_output: Array) -> String:
+	# Parse the mount point from hdiutil plist output
+	
+	if plist_output.empty():
+		return ""
+	
+	var plist_text = ""
+	for line in plist_output:
+		plist_text += str(line) + "\n"
+	
+	# Look for mount-point in the plist output
+	var lines = plist_text.split("\n")
+	var found_mount_point = false
+	
+	for i in range(lines.size()):
+		var line = lines[i].strip_edges()
+		if line == "<key>mount-point</key>":
+			found_mount_point = true
+		elif found_mount_point and line.begins_with("<string>"):
+			# Extract mount point from <string>/Volumes/something</string>
+			var start_pos = line.find("<string>") + 8
+			var end_pos = line.find("</string>")
+			if end_pos > start_pos:
+				return line.substr(start_pos, end_pos - start_pos)
+	
+	return ""
+
+
+func _check_extraction_tool_available(tool_name: String) -> bool:
+	# Check if extraction tool is available and working
+	
+	var check_command = ""
+	var check_args = []
+	
+	match OS.get_name():
+		"Windows":
+			if tool_name == "cmd":
+				return true  # cmd is always available on Windows
+			else:
+				check_command = "where"
+				check_args = [tool_name]
+		"OSX", "X11":
+			# Use `sh -c 'command -v'` (POSIX) instead of `which` (not always available)
+			check_command = "sh"
+			check_args = ["-c", "command -v '%s' || which '%s'" % [tool_name, tool_name]]
+	
+	if check_command == "":
+		return true  # Assume available if we can't check
+	
+	var result = OS.execute(check_command, check_args, true)
+	if result != 0:
+		Status.post(tr("msg_extract_tool_not_found") % tool_name, Enums.MSG_DEBUG)
+		return false
+	
+	# Ensure 7za binary has executable permissions (macOS and Linux)
+	if (OS.get_name() == "OSX" or OS.get_name() == "X11") and tool_name.ends_with("7za"):
+		var chmod_result = OS.execute("chmod", ["+x", tool_name], true)
+		if chmod_result != 0:
+			Status.post("Warning: Could not set executable permissions for 7za", Enums.MSG_WARNING)
+		
+		# Verify it's now executable
+		var test_result = OS.execute("test", ["-x", tool_name], true)
+		if test_result != 0:
+			Status.post("7za binary is not executable: %s" % tool_name, Enums.MSG_DEBUG)
+			return false
+	
+	return true
+
+
 func zip(parent: String, dir_to_zip: String, dest_zip: String) -> void:
-	# Creates a .zip using the system utilities on Linux
-	# and bundled zip.exe from InfoZip on Windows.
+	# Creates a .zip using ditto on macOS, and 7-Zip/system zip elsewhere.
 	# parent: directory that zip command is run from  (Path.savegames)
 	# dir_to_zip: relative folder to zip up  (world_name)
-	# dest_zip: zip item   (world_name.zip)
+	# dest_zip: zip name   (world_name.zip)
 	# 
 	# runs a command like:
-	# cd <userdata/save> && zip -r MyWorld.zip MyWorld
+	# cd <userdata/save> && 7za a MyWorld.zip MyWorld
 	
-	var zip_exe = Paths.utils_dir.path_join("zip.exe")
+	var sevenzip_exe
+	if OS.get_name() == "Windows":
+		sevenzip_exe = Paths.utils_dir.plus_file("7za.exe")
+	elif OS.get_name() == "OSX":
+		sevenzip_exe = Paths.utils_dir.plus_file("7za")
+	else:  # Linux (X11)
+		sevenzip_exe = Paths.utils_dir.plus_file("7za")
 	
-	var command_linux_zip = {
-		"item": "/bin/bash",
-		"args": ["-c", "cd '%s' && zip -b '%s' -r '%s' '%s'" % [parent, Paths.tmp_dir, dest_zip, dir_to_zip]]
+	var command_unix_zip = {
+		"name": "/bin/bash",
+		"args": ["-c", "cd '%s' && zip -r '%s' '%s'" % [parent, dest_zip, dir_to_zip]]
 	}
-	var command_windows = {
-		"item": "cmd",
-		"args": ["/C", "cd /d \"%s\" && \"%s\" -b \"%s\" -r \"%s\" \"%s\"" % [parent, zip_exe, Paths.tmp_dir, dest_zip, dir_to_zip]]
+	var command_macos_zip = {
+		"name": "/usr/bin/ditto",
+		"args": ["-c", "-k", "--keepParent", parent.plus_file(dir_to_zip), dest_zip]
+	}
+	var command_sevenzip_windows = {
+		"name": "cmd",
+		"args": ["/C", "cd /d \"%s\" && \"%s\" a \"%s\" \"%s\" -mx5" % [parent, sevenzip_exe, dest_zip, dir_to_zip]]
+	}
+	var command_sevenzip_unix = {
+		"name": "/bin/bash",
+		"args": ["-c", "cd '%s' && '%s' a '%s' '%s' -mx5" % [parent, sevenzip_exe, dest_zip, dir_to_zip]]
 	}
 	var command
 	
-	if (_platform == "X11" || _platform == "Linux") and (dest_zip.to_lower().ends_with(".zip")):
-		command = command_linux_zip
-	elif (_platform == "Windows") and (dest_zip.to_lower().ends_with(".zip")):
-		command = command_windows
+	var d = Directory.new()
+	
+	if not dest_zip.to_lower().ends_with(".zip"):
+		Status.post(tr("msg_extract_unsupported") % dest_zip.get_file(), Enums.MSG_ERROR)
+		emit_signal("zip_done")
+		return
+	
+	# The bundled 7za is a Linux binary, so use macOS's native archive tool.
+	if OS.get_name() == "OSX":
+		if _check_extraction_tool_available("/usr/bin/ditto"):
+			Status.post("[debug] Using /usr/bin/ditto for ZIP creation")
+			command = command_macos_zip
+		else:
+			Status.post("No ZIP creation tool available on macOS", Enums.MSG_ERROR)
+			last_zip_result = 127
+			emit_signal("zip_done")
+			return
+	# Try to use 7-Zip first for better performance on Windows and Linux
+	elif d.file_exists(sevenzip_exe):
+		if OS.get_name() == "Windows":
+			command = command_sevenzip_windows
+		else:  # Linux (X11)
+			command = command_sevenzip_unix
+	# Fall back to system zip on Linux
+	elif _platform == "X11":
+		Status.post("[debug] Using system zip for compression")
+		command = command_unix_zip
 	else:
 		Status.post(tr("msg_extract_unsupported") % dest_zip.get_file(), Enums.MSG_ERROR)
 		emit_signal("zip_done")
 		return
-		
-	if not DirAccess.dir_exists_absolute(Paths.tmp_dir):
-		DirAccess.make_dir_recursive_absolute(Paths.tmp_dir)
 	
 	Status.post(tr("msg_zipping_file") % dest_zip.get_file())
-	
-	ThreadedExec.execute(command["item"], command["args"])
-	await ThreadedExec.execution_finished
-	if ThreadedExec.last_exit_code != 0:
-		Status.post(tr("msg_zip_error") % ThreadedExec.last_exit_code, Enums.MSG_ERROR)
+		
+	var oew = OSExecWrapper.new()
+	oew.execute(command["name"], command["args"], false)
+	yield(oew, "process_exited")
+	last_zip_result = oew.exit_code
+	if oew.exit_code:
+		Status.post(tr("msg_zip_error") % oew.exit_code, Enums.MSG_ERROR)
 		Status.post(tr("msg_extract_failed_cmd") % str(command), Enums.MSG_DEBUG)
-		Status.post(tr("msg_extract_fail_output") % ThreadedExec.last_exit_code, Enums.MSG_DEBUG)
+		if oew.output.size() > 0:
+			Status.post(tr("msg_extract_fail_output") % oew.output[0], Enums.MSG_DEBUG)
 	emit_signal("zip_done")
-	

@@ -4,17 +4,18 @@ extends Node
 const _SETTINGS_FILENAME = "catapult_settings.json"
 
 const _HARDCODED_DEFAULTS = {
+	"version": "28.4.1",
 	"game": "ccb",
 	"channel": "experimental",
-	"active_install_dda": "",
+	"active_install_dda": "Cataclysm-DDA experimental build 2022-07-26-0606",
 	"active_install_bn": "",
 	"active_install_eod": "",
 	"active_install_tish": "",
-	"active_install_tlg": "",
+	"active_install_tlg":"",
 	"active_install_ccb": "",
 	"update_current_when_installing": true,
-	"launcher_locale": "zh",
-	"launcher_theme": "Godot_4.tres",
+	"launcher_locale": "",
+	"launcher_theme": "Godot_3.res",
 	"window_state": {},
 	"print_tips_of_the_day": true,
 	"update_to_same_build_allowed": false,
@@ -27,8 +28,10 @@ const _HARDCODED_DEFAULTS = {
 	"show_stock_mods": false,
 	"show_installed_mods_in_available": false,
 	"show_obsolete_mods": false,
-	"install_archived_mods": false,
+	"update_mods_with_game": false,
+
 	"show_stock_sound": false,
+	"show_stock_tilesets": true,
 	"font_preview_cyrillic": false,
 	"show_game_desc": true,
 	"keep_open_after_starting_game": true,
@@ -38,10 +41,31 @@ const _HARDCODED_DEFAULTS = {
 	"proxy_host": "",
 	"proxy_port": 0,
 	"debug_mode": false,
+	"backup_before_launch": false,
+	"backup_after_closing": false,
+	"max_auto_backups": 5,
+	"mod_download_dates": {},
+	"bn_rolling_experimental": false,
 }
 
 var _settings_file = ""
 var _current = {}
+var _initialized = false
+
+
+func _ready() -> void:
+	# Eagerly initialize settings on startup to avoid race conditions
+	if not _initialized:
+		_load()
+		_initialized = true
+
+
+func get_hardcoded_version() -> String:
+	"""
+	Returns the hardcoded default version from the script instead of reading from JSON file.
+	This is used by the update checker to get the current launcher version.
+	"""
+	return _HARDCODED_DEFAULTS["version"]
 
 
 func _exit_tree() -> void:
@@ -49,49 +73,71 @@ func _exit_tree() -> void:
 
 
 func _load() -> void:
+	# Guard against recursive calls during initialization
+	if _initialized:
+		return
 	
-	_settings_file = Paths.own_dir.path_join(_SETTINGS_FILENAME)
+	_settings_file = Paths.own_dir.plus_file(_SETTINGS_FILENAME)
 	
-	if FileAccess.file_exists(_settings_file):
+	# Ensure the directory exists before trying to read/write
+	var dir = Directory.new()
+	var own_dir = Paths.own_dir
+	if not dir.dir_exists(own_dir):
+		var err = dir.make_dir_recursive(own_dir)
+		if err != OK:
+			push_error("Failed to create settings directory: " + str(err))
+			_current = _HARDCODED_DEFAULTS
+			_initialized = true
+			return
+	
+	if File.new().file_exists(_settings_file):
 		_current = _read_from_file(_settings_file)
-		
+		# If reading failed, use defaults
+		if _current.empty():
+			_current = _HARDCODED_DEFAULTS
+			_write_to_file(_HARDCODED_DEFAULTS, _settings_file)
 	else:
-		_current = _HARDCODED_DEFAULTS.duplicate(true)
-		Status.post(tr("msg_creating_settings") % _SETTINGS_FILENAME)
+		_current = _HARDCODED_DEFAULTS
 		_write_to_file(_HARDCODED_DEFAULTS, _settings_file)
+	
+	_initialized = true
 
 
 func _read_from_file(path: String) -> Dictionary:
 	
-	if not FileAccess.file_exists(path):
+	var f = File.new()
+	
+	if not f.file_exists(path):
 		Status.post(tr("msg_nonexistent_attempt") % path, Enums.MSG_ERROR)
 		return {}
 		
-	Status.post(tr("msg_loading_settings") % _SETTINGS_FILENAME)
-		
-	var f := FileAccess.open(path, FileAccess.READ)
-	var json := JSON.new()
-	var error := json.parse(f.get_as_text())
+	f.open(path, File.READ)
+	var s = f.get_as_text()
+	var result: JSONParseResult = JSON.parse(s)
 	
-	if error:
-		Status.post(tr("msg_settings_parse_error") % [json.get_error_line(), json.get_error_message()], Enums.MSG_ERROR)
+	if result.error:
+		Status.post(tr("msg_settings_parse_error") % [result.error_line, result.error_string], Enums.MSG_ERROR)
 		return {}
 	else:
-		return json.data
+		return result.result
 
 
 func _write_to_file(data: Dictionary, path: String) -> void:
 	
-	var content = JSON.stringify(data, "    ")
-	var f := FileAccess.open(path, FileAccess.WRITE)
-	if f:
-		f.store_string(content)
-		f.close()
+	var f = File.new()
+	var content = JSON.print(data, "    ")
+	var err = f.open(path, File.WRITE)
+	if err != OK:
+		push_error("Failed to write settings file: " + str(err))
+		return
+	f.store_string(content)
+	f.close()
 
 
 func read(setting_name: String):
 	
-	if len(_current) == 0:
+	# Ensure settings are loaded (should be done in _ready, but check anyway)
+	if not _initialized:
 		_load()
 	
 	if not setting_name in _current:
