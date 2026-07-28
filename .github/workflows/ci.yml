@@ -2,6 +2,10 @@ name: Build and export
 
 on:
   push:
+    branches:
+      - master
+    tags:
+      - "*"
   pull_request:
   workflow_dispatch:
 
@@ -80,24 +84,27 @@ jobs:
           echo "XDG_DATA_HOME=${data_dir}" >> "$GITHUB_ENV"
           "${godot_dir}/godot" --version
 
-      - name: Import project
-        shell: bash
-        run: |
-          set -euo pipefail
-          "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --editor --quit
-
       - name: Export Linux, Windows, and macOS builds
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p build dist
 
-          "$GODOT_BIN" --path "$GITHUB_WORKSPACE" \
-            --export "Linux/X11" "$GITHUB_WORKSPACE/build/Dabdoob-CCB-linux.x86_64"
-          "$GODOT_BIN" --path "$GITHUB_WORKSPACE" \
-            --export "Windows Desktop" "$GITHUB_WORKSPACE/build/Dabdoob-CCB-win-x64.exe"
-          "$GODOT_BIN" --path "$GITHUB_WORKSPACE" \
-            --export "Mac OSX" "$GITHUB_WORKSPACE/build/Dabdoob-CCB-mac.app.zip"
+          export_build() {
+            local preset="$1"
+            local output="$2"
+
+            timeout --signal=TERM --kill-after=30s 6m \
+              "$GODOT_BIN" --verbose --path "$GITHUB_WORKSPACE" \
+              --export "$preset" "$output"
+          }
+
+          export_build "Linux/X11" \
+            "$GITHUB_WORKSPACE/build/Dabdoob-CCB-linux.x86_64"
+          export_build "Windows Desktop" \
+            "$GITHUB_WORKSPACE/build/Dabdoob-CCB-win-x64.exe"
+          export_build "Mac OSX" \
+            "$GITHUB_WORKSPACE/build/Dabdoob-CCB-mac.app.zip"
 
           chmod +x build/Dabdoob-CCB-linux.x86_64
           cp build/Dabdoob-CCB-linux.x86_64 dist/
