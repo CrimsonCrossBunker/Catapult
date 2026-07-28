@@ -1,0 +1,145 @@
+name: Build and export
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: catapult-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 3.6.1
+  GODOT_RELEASE: 3.6.1-stable
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate CCB integration
+        run: .github/scripts/validate_ccb_integration.sh
+
+  export:
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Cache Godot and export templates
+        id: godot-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ runner.temp }}/godot-3
+            ${{ runner.temp }}/godot-data
+          key: godot-${{ runner.os }}-${{ env.GODOT_RELEASE }}
+
+      - name: Install Godot 3 and export templates
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          godot_dir="${RUNNER_TEMP}/godot-3"
+          data_dir="${RUNNER_TEMP}/godot-data"
+          template_dir="${data_dir}/godot/templates/${GODOT_VERSION}.stable"
+          mkdir -p "$godot_dir" "$template_dir"
+
+          if [[ ! -x "${godot_dir}/godot" ]]; then
+            curl --fail --location --retry 5 --retry-all-errors \
+              --connect-timeout 20 \
+              "https://github.com/godotengine/godot/releases/download/${GODOT_RELEASE}/Godot_v${GODOT_RELEASE}_linux_headless.64.zip" \
+              --output "${RUNNER_TEMP}/godot.zip"
+            unzip -q "${RUNNER_TEMP}/godot.zip" -d "$godot_dir"
+            mv "${godot_dir}/Godot_v${GODOT_RELEASE}_linux_headless.64" "${godot_dir}/godot"
+            chmod +x "${godot_dir}/godot"
+          fi
+
+          if [[ ! -f "${template_dir}/linux_x11_64_release" ]]; then
+            curl --fail --location --retry 5 --retry-all-errors \
+              --connect-timeout 20 \
+              "https://github.com/godotengine/godot/releases/download/${GODOT_RELEASE}/Godot_v${GODOT_RELEASE}_export_templates.tpz" \
+              --output "${RUNNER_TEMP}/templates.tpz"
+            rm -rf "${RUNNER_TEMP}/templates-unpack"
+            unzip -q "${RUNNER_TEMP}/templates.tpz" -d "${RUNNER_TEMP}/templates-unpack"
+            cp -a "${RUNNER_TEMP}/templates-unpack/templates/." "$template_dir/"
+          fi
+
+          echo "GODOT_BIN=${godot_dir}/godot" >> "$GITHUB_ENV"
+          echo "XDG_DATA_HOME=${data_dir}" >> "$GITHUB_ENV"
+          "${godot_dir}/godot" --version
+
+      - name: Import project
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --editor --quit
+
+      - name: Export Linux, Windows, and macOS builds
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build dist
+
+          "$GODOT_BIN" --path "$GITHUB_WORKSPACE" \
+            --export "Linux/X11" "$GITHUB_WORKSPACE/build/Dabdoob-CCB-linux.x86_64"
+          "$GODOT_BIN" --path "$GITHUB_WORKSPACE" \
+            --export "Windows Desktop" "$GITHUB_WORKSPACE/build/Dabdoob-CCB-win-x64.exe"
+          "$GODOT_BIN" --path "$GITHUB_WORKSPACE" \
+            --export "Mac OSX" "$GITHUB_WORKSPACE/build/Dabdoob-CCB-mac.app.zip"
+
+          chmod +x build/Dabdoob-CCB-linux.x86_64
+          cp build/Dabdoob-CCB-linux.x86_64 dist/
+          cp build/Dabdoob-CCB-win-x64.exe dist/
+          cp build/Dabdoob-CCB-mac.app.zip dist/
+          cp LICENSE NOTICE.md dist/
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Dabdoob-CCB-${{ github.sha }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: export
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    timeout-minutes: 5
+
+    steps:
+      - name: Download exported artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: Dabdoob-CCB-${{ github.sha }}
+          path: dist
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/* \
+              --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$GITHUB_REF_NAME" \
+              --generate-notes
+          fi

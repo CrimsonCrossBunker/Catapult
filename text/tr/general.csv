@@ -1,10 +1,9 @@
 "keys","tr"
 ,
-"window_title","Catapult — Cataclysm: DDA ve BN için yükleyici"
-"str_welcome","Catapult’a hoş geldin !"
+"window_title","Dabdoob — Cataclysm: DDA ve BN için yükleyici"
+"str_welcome","Dabdoob'a hoş geldin !"
 "str_tip_of_the_day","\n\n[u]Günün İpucu:[/u]\n"
-"msg_unpacking_unzip","unzip.exe çıkarılıyor..."
-"msg_unpacking_zip","zip.exe çıkarılıyor..."
+"str_donor_of_the_day","\n\n[color=#f5c842][b]— Message from a donor —[/b][/color]\n"
 "msg_theme_load_error","Tema %s yüklenemedi."
 "debug_test","Bu,çeviri alımını test etmek için konulan bir hata ayıklama yazısıdır."
 ,
@@ -12,18 +11,46 @@
 "tag_error","hata"
 "tag_debug","hata ayıklama"
 ,
-"lbl_game","Oyun："
+"lbl_game","Oyun:"
 "desc_dda","[b]Cataclysm: Dark Days Ahead[/b] kıyamet sonrası dünyada yer alan tur tabanlı bir oyundur. Yağmala, keşfet, inşa et, çiftçilik yap, araçları tamir ve modifiye et, biyonik yükle, mutasyon geçir [color=#009900]zombiler[/color] ve diğer sayısız tehtide karşı kendini savun — ve hepsi de sınırsız, rastgele oluşmuş bir dünyada!"
-"desc_bn","[b]Cataclysm: Bright Nights[/b]. Bilgiçlik taslamayı bırak, [color=#ff3300]!!eğlenceye!![/color] kucak aç. Bu fork, oyunu bilim kurgu roguelike kökenine geri getirir ve DDA takımı tarafından yapılan tartışmalı değişiklikleri geri çeker (cepler, yetkinlik, donma ve [color=#3b93f7][url=https://docs.cataclysmbn.org/game/changelog/]daha fazlası[/url][/color]). Savaş,oyun dengesi ve tempoya özel önem verildi."
+"desc_bn","[b]Cataclysm: Bright Nights[/b]. Bilgiçlik taslamayı bırak, [color=#ff3300]!!eğlenceye!![/color] kucak aç. Bu fork, oyunu bilim kurgu roguelike kökenine geri getirir ve DDA takımı tarafından yapılan tartışmalı değişiklikleri geri çeker (cepler, yetkinlik, donma ve [color=#3b93f7][url=https://docs.cataclysmbn.org/en/game/changelog/]daha fazlası[/url][/color]). Savaş,oyun dengesi ve tempoya özel önem verildi."
 "desc_eod","[b]Cataclysm: Era of Decay[/b] bu, orijinal oyunun özelliklerinden veya içeriğinden hiçbirini tamamen kaldırmadan ve oyunu varsayılan ayarlarla gerçekçi bırakmadan, pratik olarak mümkün olduğunca oyuncu tarafından erişilebilir yapılandırılabilirliğe sahip olmayı amaçlayan bir DDA çatalıdır. [color=#ff3300] istediğiniz şekilde eğlenin [/color]."
 "desc_tish","[b]Cataclysm: There Is Still Hope[/b] oyunun her şeyden önce ilginç olmasına odaklanan, ''gerçekçilik veya eğlence'' ve ''gerçekçilik veya eğlence'' ikiliklerini reddeden bir DDA çatalıdır."
+"desc_tlg","[b]Cataclysm: The Last Generation[/b]'ın birincil amacı, Cataclysm'in derinliğini ve inandırıcılığa saygısını korurken, oyunun her zaman en iyi yaptığı şeyi geliştirmek, karakter gelişimini ve sürükleyici hayat simülasyonu unsurlarını hayatta kalma becerilerinizi test edecek bir dünyada ön plana çıkarmaktır."
+"desc_ccb","[b]Cataclysm: Cleanwater Bomb[/b] is a DDA-derived survival roguelike maintained by the CrimsonCrossBunker community."
 ,
 "tab_game","Oyun"
 "tab_mods","Modlar"
 "tab_soundpacks","Ses paketleri"
+"tab_tilesets","Tilesetler"
 "tab_fonts","Fontlar"
 "tab_backups","Yedekler"
 "tab_settings","Ayarlar"
-"desc_tlg","[b]Cataclysm: The Last Generation[/b]. İnsanlık bunu atlatamayacak, ama sen notayı almadın, [i]henüz[/i]. WormGirl tarafından yönetilen bu DDA forku, hayatta kalma ve yaşam simülasyonuna vurgu yaparak oyunun tamamında önemli bir dengeleme sunuyor. Hayatta kalmak kasıtlıdır ve tüm seçimleriniz önemlidir. İnşa edebileceğiniz tüm silahlar, biyonikler ve kömürlü tütsü makineleriyle bu neredeyse makul yakın gelecek dünyasını keşfedin veya denerken ölün!"
-"desc_ccb","[b]Cataclysm: Cleanwater Bomb[/b] is a fork of DDA."
-"msg_auto_scale_failsafe_triggered","Otomatik UI ölçeği için potansiyel olarak mantıksız değer tespit edildi: %s. Ölçek 1.0'a zorlanıyor."
+"tab_about","Hakkında"
+"about_app_title","Dabdoob - Cataclysm Başlatıcısı"
+"about_app_desc","Dabdoob, artık terk edilmiş Catapult başlatıcısının gelişimini sürdüren bir başlatıcıdır. Tek bir kişi tarafından geliştirilip sürdürülür. Beni aşağıdaki bağlantılarda Discord ve Github'da bulabilirsiniz.
+
+Cataclysm ve modları/karo setleri/ses paketleri yaratıcılarının çalışmalarını takdir ediyorsanız onlara bakmayı unutmayın ve benim çalışmamı takdir ediyorsanız, aşağıdaki bağlantı üzerinden bağış yapmayı düşünün!"
+"about_links","Bağlantılar"
+"thank_you_title","Dabdoob'u indirdiğiniz için teşekkür ederiz!"
+"thank_you_message","Dabdoob'u yüklediğiniz için teşekkür ederiz! Umarım beğenirsiniz.
+
+Bu şu anda sizin için alakalı olmayabilir, ancak depresif, endişeli veya kendinizden emin değilseniz, lütfen sevilen birine, bir arkadaşa veya güvendiğiniz birine ulaşın.
+Bu sizi bir yük yapmaz.
+Hissettiğiniz şey kesin değil ve işler düzelecek.
+
+Size güzel bir gün diliyorum ve başlatıcımla eğlenceyi umuyorum."
+"msg_extract_create_dir_failed","Çıkarma dizini %s oluşturulamadı (hata: %s)"
+"msg_extract_tool_not_found","Çıkarma aracı bulunamadı: %s"
+"msg_dmg_only_macos","DMG dosyaları sadece macOS'ta çıkarılabilir"
+"msg_mounting_dmg","DMG dosyası bağlanıyor: %s"
+"msg_dmg_mount_failed","DMG dosyası bağlanamadı (hata: %s)"
+"msg_dmg_mount_point_failed","DMG bağlama noktası ayrıştırılamadı"
+"msg_copying_dmg_contents","İçerikler şuradan kopyalanıyor: %s"
+"msg_unmounting_dmg","DMG dosyası bağlantısı kaldırılıyor"
+"msg_dmg_unmount_warning","Uyarı: DMG bağlantısı kaldırılamadı (hata: %s)"
+"msg_no_executable_found_macos","Oyun dizininde çalıştırılabilir dosya bulunamadı"
+"msg_fixing_executable_permissions","Çalıştırılabilir izinler düzeltiliyor: %s"
+"msg_chmod_failed","Çalıştırılabilir izinler ayarlanamadı %s (hata: %s)"
+"msg_setting_working_dir","Çalışma dizini ayarlanıyor: %s"
+"msg_starting_macos_bundle","macOS uygulama paketi başlatılıyor: %s"

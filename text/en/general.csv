@@ -1,10 +1,9 @@
 "keys","en"
 ,
-"window_title","Catapult — a launcher for Cataclysm: DDA and BN"
-"str_welcome","Welcome to Catapult!"
+"window_title","Dabdoob — a launcher for Cataclysm"
+"str_welcome","Welcome to Dabdoob!"
 "str_tip_of_the_day","\n\n[u]Tip of the day:[/u]\n"
-"msg_unpacking_unzip","Unpacking unzip.exe..."
-"msg_unpacking_zip","Unpacking zip.exe..."
+"str_donor_of_the_day","\n\n[color=#f5c842][b]— Message from a donor —[/b][/color]\n"
 "msg_theme_load_error","Could not load theme %s."
 "debug_test","This is a debug text to test translation retrieval."
 ,
@@ -14,17 +13,45 @@
 ,
 "lbl_game","Game:"
 "desc_dda","[b]Cataclysm: Dark Days Ahead[/b] is a turn-based survival game set in a post-apocalyptic world. Scavenge, explore, craft, build, farm, repair and modify vehicles, install bionics, mutate, defend against [color=#009900]zombies[/color] and countless other monstrosities — all in a limitless, procedurally generated world!"
-"desc_bn","[b]Cataclysm: Bright Nights[/b]. Reject pedantry, embrace [color=#ff3300]!!fun!![/color]. This fork takes the game back to its sci-fi roguelike roots and reverts many controversial changes by the DDA team (pockets, proficiencies, freezing, and [color=#3b93f7][url=https://docs.cataclysmbn.org/game/changelog/]more[/url][/color]). Special attention is paid to combat, game balance and pacing."
+"desc_bn","[b]Cataclysm: Bright Nights[/b]. Reject pedantry, embrace [color=#ff3300]!!fun!![/color]. This fork takes the game back to its sci-fi roguelike roots and reverts many controversial changes by the DDA team (pockets, proficiencies, freezing, and [color=#3b93f7][url=https://docs.cataclysmbn.org/en/game/changelog/]more[/url][/color]). Special attention is paid to combat, game balance and pacing."
 "desc_eod","[b]Cataclysm: Era of Decay[/b] is a fork of DDA, primarily aiming to have as much player-accessible configurability as practically possible, without completely removing any of the original game's features or content and leaving the game realistic with default settings. Have fun in the way that [color=#ff3300]you[/color] want."
 "desc_tish","[b]Cataclysm: There Is Still Hope[/b] is a fork of DDA with a focus on the game being interesting above all else, rejecting the dichotomies of ''realism or fun'' and ''verisimilitude or fun''."
-"desc_tlg","[b]Cataclysm: The Last Generation[/b]. Humanity will not survive this, but you didn't get the memo, [i]yet[/i]. This fork of DDA, guided by WormGirl, features significant rebalancing across the entire game, with an emphasis on survival and life simulation. Survival is intentional, and all of your choices matter. Explore this nearly plausible near-future world with all the guns, bionics, and charcoal smokers you can build, or die trying!"
-"desc_ccb","[b]Cataclysm: Cleanwater Bomb[/b] is a fork based on CDDA experimental build (Commit 221c786e7d). This fork aims to balance realism and gameplay, preserving the flavor of CDDA while developing its own identity. Changes backed by substantial references and realistic logic are welcomed; changes that work against the player are not. Gameplay must always be considered alongside realism."
+"desc_tlg","[b]Cataclysm: The Last Generation[/b] primary aim is to preserve Cataclysm's depth and respect for plausibility while refining what it has always done best as a game, foregrounding character progression and immersive life sim elements in a world that will put your survival skills to the test."
+"desc_ccb","[b]Cataclysm: Cleanwater Bomb[/b] is a DDA-derived survival roguelike maintained by the CrimsonCrossBunker community."
 ,
 "tab_game","Game"
 "tab_mods","Mods"
 "tab_soundpacks","Soundpacks"
+"tab_tilesets","Tilesets"
 "tab_fonts","Fonts"
 "tab_backups","Backups"
 "tab_settings","Settings"
+"tab_about","About"
+"about_app_title","Dabdoob - Cataclysm Launcher"
+"about_app_desc","Dabdoob continues the development of the now abandoned Catapult launcher. It is developed and maintained by a single person. You can find me on Discord and Github in the links below. 
+
+If you appreciate the work of any of the creators for Cataclysm and it's Mods/Tilesets/Soundpacks don't forget to check them out and if you appreciate the work I do, consider donating on kofi!"
+"about_links","Links"
+"thank_you_title","Thank you for downloading Dabdoob!"
+"thank_you_message","Thank you for installing Dabdoob! I hope you enjoy it.
+
+This may not be relevant to you right now, but if you are feeling depressed, anxious or unsure of yourself, please reach out to a loved one, a friend or someone you trust.
+This does not make you a burden.
+The way you may feel is not final and things will get better.
+
+I wish you a pleasant day and I hope you have fun with my launcher."
 ,
-"msg_auto_scale_failsafe_triggered","Detected potentially unreasonable value for automatic UI scale: %s. Forcing scale to 1.0."
+"msg_extract_create_dir_failed","Failed to create extraction directory %s (error: %s)"
+"msg_extract_tool_not_found","Extraction tool not found: %s"
+"msg_dmg_only_macos","DMG files can only be extracted on macOS"
+"msg_mounting_dmg","Mounting DMG file: %s"
+"msg_dmg_mount_failed","Failed to mount DMG file (error: %s)"
+"msg_dmg_mount_point_failed","Failed to parse DMG mount point"
+"msg_copying_dmg_contents","Copying contents from: %s"
+"msg_unmounting_dmg","Unmounting DMG file"
+"msg_dmg_unmount_warning","Warning: Failed to unmount DMG (error: %s)"
+"msg_no_executable_found_macos","No executable found in game directory"
+"msg_fixing_executable_permissions","Fixing executable permissions for: %s"
+"msg_chmod_failed","Failed to set executable permissions for %s (error: %s)"
+"msg_setting_working_dir","Setting working directory to: %s"
+"msg_starting_macos_bundle","Starting macOS app bundle: %s"

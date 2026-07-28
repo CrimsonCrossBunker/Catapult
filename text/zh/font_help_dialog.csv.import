@@ -2,14 +2,13 @@
 
 importer="csv_translation"
 type="Translation"
-uid="uid://pmfdpkx53msf"
 
 [deps]
 
-files=["res://text/zh/font_help_dialog.zh.translation"]
+files=[ "res://text/zh/font_help_dialog.zh_Hans_CN.translation" ]
 
 source_file="res://text/zh/font_help_dialog.csv"
-dest_files=["res://text/zh/font_help_dialog.zh.translation"]
+dest_files=[ "res://text/zh/font_help_dialog.zh_Hans_CN.translation" ]
 
 [params]
 

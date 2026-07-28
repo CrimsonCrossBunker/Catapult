@@ -50,10 +50,25 @@ const _PREVIEW_TEXT_RU := [
 
 const _PREVIEW_TEXT_NUM := "1234567890 !@#$ %^&* ()[]{}"
 
-@onready var _rng := RandomNumberGenerator.new()
+onready var _rng := RandomNumberGenerator.new()
+onready var _tabs := $".."
+onready var _fonts := $"/root/Catapult/Fonts"
+onready var _list := $FontSelection/RightPane/FontsList
+onready var _btn_set_ui := $FontSelection/RightPane/Buttons/BtnSetFontUI
+onready var _btn_set_map := $FontSelection/RightPane/Buttons/BtnSetFontMap
+onready var _btn_set_om := $FontSelection/RightPane/Buttons/BtnSetFontOvermap
+onready var _btn_set_all := $FontSelection/RightPane/Buttons/BtnSetFontAll
+onready var _preview := $FontSelection/LeftPane/Preview
+onready var _cbox_cyrillic = $FontSelection/LeftPane/PreviewCyrillic
+onready var _info := $FontConfigInfo
+onready var _sb_font_ui := $FontSelection/LeftPane/FontSizeUI/sbFontSizeUI
+onready var _sb_font_map := $FontSelection/LeftPane/FontSizeMap/sbFontSizeMap
+onready var _sb_font_om := $FontSelection/LeftPane/FontSizeOvermap/sbFontSizeOM
+onready var _cbtn_blending := $FontSelection/LeftPane/FontBlending
+onready var _help_dlg := $FontSizeHelpDialog
 
 
-func _make_preview_string() -> String:
+func _make_preview_string(cyrillic: bool = false) -> String:
 	
 	var index = _rng.randi_range(0, len(_PREVIEW_TEXT_NUM) - 1)
 	var result = _PREVIEW_TEXT_NUM
@@ -70,7 +85,7 @@ func _make_preview_string() -> String:
 
 func _show_current_config_info() -> void:
 	
-	var config: Dictionary = %FontManager.font_config
+	var config: Dictionary = _fonts.font_config
 	var fields := {
 		"typeface": tr("str_curr_font_config_ui"),
 		"map_typeface": tr("str_curr_font_config_map"),
@@ -78,99 +93,134 @@ func _show_current_config_info() -> void:
 	var text := "[u]%s[/u]\n[table=2]" % tr("str_curr_font_config")
 	
 	for field in fields:
-		var list: Array = config[field]
 		var row: String = "\n[cell]%s: [/cell]" % fields[field]
 		var fonts := ""
-		for i in len(list):
-			if i > 0:
-				fonts += "  =>"
-			fonts += "  [i]%s[/i]" % list[i].get_file().get_basename()
+		
+		# Defensive check: ensure field exists and is an array
+		if not field in config:
+			fonts = "[i]Not configured[/i]"
+		elif not config[field] is Array:
+			fonts = "[i]Invalid configuration[/i]"
+		else:
+			var list: Array = config[field]
+			for i in len(list):
+				if i > 0:
+					fonts += "  =>"
+				# Defensive check: ensure list item is a string
+				if list[i] != null and list[i] is String:
+					fonts += "  [i]%s[/i]" % list[i].get_file().get_basename()
+				else:
+					fonts += "  [i]Invalid font entry[/i]"
+		
 		row += "[cell]%s[/cell]" % fonts
 		text += row
 	
 	text += "\n[/table]"
 	
-	%CurrentFontConfigInfo.text = text
+	_info.bbcode_text = text
 
 
 func _load_font_options() -> void:
 	
-	%FontManager.load_game_options()
+	_fonts.load_game_options()
 	
-	%FontSizeUIField.value = %FontManager.get_game_option("FONT_SIZE") as int
-	%FontSizeMapField.value = %FontManager.get_game_option("MAP_FONT_SIZE") as int
-	%FontSizeOvermapField.value = %FontManager.get_game_option("OVERMAP_FONT_SIZE") as int
-	%FontBlendingSwitch.button_pressed = (%FontManager.get_game_option("FONT_BLENDING").to_lower() == "true")
+	# Defensive handling for font size options
+	var font_size = _fonts.get_game_option("FONT_SIZE")
+	if font_size != null and (font_size is String or font_size is int):
+		_sb_font_ui.value = int(font_size)
+	else:
+		_sb_font_ui.value = 16  # Default value
+	
+	var map_font_size = _fonts.get_game_option("MAP_FONT_SIZE")
+	if map_font_size != null and (map_font_size is String or map_font_size is int):
+		_sb_font_map.value = int(map_font_size)
+	else:
+		_sb_font_map.value = 16  # Default value
+	
+	var overmap_font_size = _fonts.get_game_option("OVERMAP_FONT_SIZE")
+	if overmap_font_size != null and (overmap_font_size is String or overmap_font_size is int):
+		_sb_font_om.value = int(overmap_font_size)
+	else:
+		_sb_font_om.value = 16  # Default value
+	
+	# Defensive handling for font blending option
+	var font_blending = _fonts.get_game_option("FONT_BLENDING")
+	if font_blending != null and font_blending is String:
+		_cbtn_blending.pressed = (font_blending.to_lower() == "true")
+	else:
+		_cbtn_blending.pressed = false  # Default value
 
 
 func _on_Tabs_tab_changed(tab: int) -> void:
 	
-	if tab != 3:
+	if tab != 4:
 		return
 	
-	if not %FontManager.font_config_file_exists():
+	if not _fonts.font_config_file_exists():
 		Status.post(tr("msg_no_font_config_file"), Enums.MSG_WARN)
-		%TabbedLayout.current_tab = 0
+		_tabs.current_tab = 0
 		return
 	
-	if not %FontManager.options_file_exists():
+	if not _fonts.options_file_exists():
 		Status.post(tr("msg_no_game_options_file"), Enums.MSG_WARN)
-		%TabbedLayout.current_tab = 0
+		_tabs.current_tab = 0
 		return
 		
-	%FontManager.load_available_fonts()
-	%FontManager.load_font_config()
+	_fonts.load_available_fonts()
+	_fonts.load_font_config()
 	
-	for btn in [%SetFontUIBtn, %SetFontMapBtn, %SetFontOvermapBtn, %SetFontAllBtn]:
+	for btn in [_btn_set_ui, _btn_set_map, _btn_set_om, _btn_set_all]:
 		btn.disabled = true
 	
-	%FontsList.clear()
-	for font in %FontManager.available_fonts:
-		%FontsList.add_item(font["name"])
-		%FontsList.set_item_tooltip(%FontsList.get_item_count() - 1, tr(font["desc_key"]))
+	_list.clear()
+	for font in _fonts.available_fonts:
+		_list.add_item(font["name"])
+		_list.set_item_tooltip(_list.get_item_count() - 1, tr(font["desc_key"]))
 	
-	%PreviewCyrillicSwitch.button_pressed = Settings.read("font_preview_cyrillic")
+	_cbox_cyrillic.pressed = Settings.read("font_preview_cyrillic")
 	_load_font_options()
 	
-	%FontPreviewText.text = ""
+	_preview.bbcode_text = ""
 	_show_current_config_info()
 
 
 func _on_FontsList_item_selected(index: int) -> void:
 	
-	var font_info = %FontManager.available_fonts[index]
-	var font_path := "res://fonts/ingame".path_join(font_info["file"])
-	var font_res := FontFile.new()
-	font_res.load_dynamic_font(font_path)
+	var font_info = _fonts.available_fonts[index]
+	var font_path := "res://fonts/ingame".plus_file(font_info["file"])
+	var font_res = DynamicFont.new()
 	
-	%FontPreviewText.add_theme_font_override("normal_font", font_res)
-	%FontPreviewText.add_theme_font_size_override("normal_font_size", 15.0 * Geom.scale)
-	%FontPreviewText.text = _make_preview_string()
+	font_res.font_data = load(font_path)
+	font_res.size = 15.0 * Geom.scale
+	font_res.use_filter = true
 	
-	for btn in [%SetFontUIBtn, %SetFontMapBtn, %SetFontOvermapBtn, %SetFontAllBtn]:
+	_preview.add_font_override("normal_font", font_res)
+	_preview.bbcode_text = _make_preview_string(Settings.read("font_preview_cyrillic"))
+	
+	for btn in [_btn_set_ui, _btn_set_map, _btn_set_om, _btn_set_all]:
 		btn.disabled = false
 
 
 func _on_BtnSetFontX_pressed(ui: bool, map: bool, overmap: bool) -> void:
 	
-	var index = %FontsList.get_selected_items()[0]
-	var font_name = %FontManager.available_fonts[index]["name"]
+	var index = _list.get_selected_items()[0]
+	var name = _fonts.available_fonts[index]["name"]
 	
 	if ui:
-		Status.post(tr("msg_setting_ui_font") % font_name)
+		Status.post(tr("msg_setting_ui_font") % name)
 	if map:
-		Status.post(tr("msg_setting_map_font") % font_name)
+		Status.post(tr("msg_setting_map_font") % name)
 	if overmap:
-		Status.post(tr("msg_setting_omap_font") % font_name)
+		Status.post(tr("msg_setting_omap_font") % name)
 	
-	%FontManager.set_font(index, ui, map, overmap)
+	_fonts.set_font(index, ui, map, overmap)
 	_on_BtnSaveFontOptions_pressed()
 	_show_current_config_info()
 
 
 func _on_BtnResetFont_pressed() -> void:
 	
-	%FontManager.reset_font()
+	_fonts.reset_font()
 	_on_BtnSaveFontOptions_pressed()
 	_show_current_config_info()
 
@@ -178,21 +228,21 @@ func _on_BtnResetFont_pressed() -> void:
 func _on_PreviewCyrillic_toggled(button_pressed: bool) -> void:
 	
 	Settings.store("font_preview_cyrillic", button_pressed)
-	%FontPreviewText.text = _make_preview_string()
+	_preview.bbcode_text = _make_preview_string(Settings.read("font_preview_cyrillic"))
 
 
 func _on_BtnSaveFontOptions_pressed() -> void:
 	
-	var size_ui := int(%FontSizeUIField.value)
-	var size_map := int(%FontSizeMapField.value)
-	var size_om := int(%FontSizeOvermapField.value)
+	var size_ui := int(_sb_font_ui.value)
+	var size_map := int(_sb_font_map.value)
+	var size_om := int(_sb_font_om.value)
 	
-	%FontManager.set_font_sizes(size_ui, size_map, size_om)
+	_fonts.set_font_sizes(size_ui, size_map, size_om)
 	
-	%FontManager.set_game_option("FONT_BLENDING", str(%FontBlendingSwitch.button_pressed))
-	%FontManager.write_game_options()
+	_fonts.set_game_option("FONT_BLENDING", str(_cbtn_blending.pressed))
+	_fonts.write_game_options()
 
 
 func _on_HelpIcon_pressed() -> void:
 	
-	%FontSizeHelpDialog.open()
+	_help_dlg.open()

@@ -1,0 +1,12 @@
+"keys","ko"
+,
+"msg_no_tileset_dir","타일셋 디렉터리가 존재하지 않습니다: %s"
+"msg_deleting_tileset","%s 삭제 중"
+"msg_tileset_not_found","이름이 \"%s\"인 타일셋을 찾을 수 없습니다"
+"msg_installing_tileset","타일셋 \"%s\" 설치 중..."
+"msg_reinstalling_tileset","타일셋 \"%s\" 재설치 중..."
+"msg_tileset_download_failed","타일셋 아카이브를 다운로드할 수 없습니다."
+"msg_tileset_installed","타일셋이 설치되었습니다."
+"msg_tileset_extraction_error","아카이브 추출이 실패했습니다(종료 코드: %s)"
+"msg_tileset_extraction_failed","추출 후 예상 타일셋 디렉터리 '%s'가 발견되지 않았습니다."
+"msg_tileset_extraction_debug","추출 디렉터리: %s, 내용: %s" 

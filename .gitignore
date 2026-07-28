@@ -1,11 +1,10 @@
-/.godot
 /.import
-Catapult.x86_64
-Catapult.exe
+Dabdoob.x86_64
+Dabdoob.exe
+build/
+dist/
 *.translation
 *~lock*
-*.tmp
-build/
 
 # Godot Git plugin
 /bin
@@ -14,3 +13,6 @@ git_api.gdns
 
 # vscode
 .vscode
+
+# Claude Code
+.claude

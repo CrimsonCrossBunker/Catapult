@@ -1,19 +1,29 @@
-extends Window
+extends WindowDialog
 
 
 const _PR_URL = {
 	"dda": "https://api.github.com/search/issues?q=repo%3Acleverraven/Cataclysm-DDA",
-	"bn": "https://api.github.com/search/issues?q=repo%3Acataclysmbn/Cataclysm-BN",
+	"bn": "https://api.github.com/search/issues?q=repo%3Acataclysmbnteam/Cataclysm-BN",
 	"eod": "https://api.github.com/search/issues?q=repo%3AAtomicFox556/Cataclysm-EOD",
 	"tish": "https://api.github.com/search/issues?q=repo%3ACataclysm-TISH-team/Cataclysm-TISH/",
-	"tlg": "https://api.github.com/search/issues?q=repo%3ACataclysm-TLG/Cataclysm-TLG",
-	"ccb": "https://api.github.com/search/issues?q=repo%3ALYHGLYTX/Cataclysm-Cleanwater-Bomb",
+	"tlg": "https://api.github.com/search/issues?q=repo%3ACataclysm-TLG/Cataclysm-TLG/",
+	"ccb": "https://api.github.com/search/issues?q=repo%3ACrimsonCrossBunker/Cataclysm-Cleanwater-Bomb",
 }
 
-@onready var _pullRequests := $PullRequests
-@onready var _changelogTextBox := $Panel/Margin/VBox/ChangelogText
+const _COMMITS_URL = {
+	"dda": "https://api.github.com/repos/CleverRaven/Cataclysm-DDA/commits",
+	"bn": "https://api.github.com/repos/cataclysmbnteam/Cataclysm-BN/commits",
+	"eod": "https://api.github.com/repos/AtomicFox556/Cataclysm-EOD/commits",
+	"tish": "https://api.github.com/repos/Cataclysm-TISH-team/Cataclysm-TISH/commits",
+	"tlg": "https://api.github.com/repos/Cataclysm-TLG/Cataclysm-TLG/commits",
+	"ccb": "https://api.github.com/repos/CrimsonCrossBunker/Cataclysm-Cleanwater-Bomb/commits",
+}
+
+onready var _pullRequests := $PullRequests
+onready var _changelogTextBox := $Panel/Margin/VBox/ChangelogText
 
 var _pr_data = ""
+var _using_releases_fallback := false
 
 
 func open() -> void:
@@ -33,34 +43,57 @@ func _update_proxy(http: HTTPRequest) -> void:
 		http.set_https_proxy("", -1)
 
 
-func download_pull_requests():
-	var prs := Settings.read("num_prs_to_request") as int
-	var url = _PR_URL[Settings.read("game")]
-	url += "+is%3Apr+is%3Amerged&per_page=" + str(prs)
+func _get_auth_headers() -> Array:
 	var headers = ["user-agent: CatapultGodotApp"]
+	var catapult = get_node("/root/Catapult")
+	if catapult and catapult.has_method("_get_github_auth_headers"):
+		var auth_headers = catapult._get_github_auth_headers()
+		for auth_header in auth_headers:
+			headers.append(auth_header)
+	return headers
+
+
+func download_pull_requests():
+	_using_releases_fallback = false
+	var prs = Settings.read("num_prs_to_request")
+	var url = _PR_URL[Settings.read("game")]
+	url += "+is%3Apr+is%3Amerged&per_page=" + prs
 	_pr_data = tr("str_fetching_changes")
 	_update_proxy(_pullRequests)
-	_pullRequests.request(url, headers)
+	_pullRequests.request(url, _get_auth_headers())
 	_changelogTextBox.clear()
-	_changelogTextBox.append_text(_pr_data)
+	_changelogTextBox.append_bbcode(_pr_data)
 	_changelogTextBox.clear()
-	_changelogTextBox.append_text(_pr_data)
+	_changelogTextBox.append_bbcode(_pr_data)
 
 
-func _on_PullRequests_request_completed(_result, response_code, _headers, body):
-	var test_json_conv = JSON.new()
-	test_json_conv.parse(body.get_string_from_utf8())
-	var json = test_json_conv.get_data()
+func _download_commits():
+	var prs = Settings.read("num_prs_to_request")
+	var url = _COMMITS_URL[Settings.read("game")]
+	url += "?per_page=" + prs
+	_update_proxy(_pullRequests)
+	_pullRequests.request(url, _get_auth_headers())
+
+
+func _on_PullRequests_request_completed(result, response_code, headers, body):
+	var json = parse_json(body.get_string_from_utf8())
 	if response_code != 200:
+		if response_code == 422 and not _using_releases_fallback:
+			_using_releases_fallback = true
+			_download_commits()
+			return
 		_pr_data = tr("str_error_retrieving_data")
 		_pr_data += tr("str_hhtp_response_code") % response_code
 		if (json) and ("message" in json):
 			_pr_data += tr("str_github_says") % json["message"]
 		_pr_data += tr("str_try_later")
 	else:
-		_pr_data = process_pr_data(json)
+		if _using_releases_fallback:
+			_pr_data = process_commits_data(json)
+		else:
+			_pr_data = process_pr_data(json)
 	_changelogTextBox.clear()
-	_changelogTextBox.append_text(_pr_data)
+	_changelogTextBox.append_bbcode(_pr_data)
 
 
 func process_pr_data(data):
@@ -68,8 +101,8 @@ func process_pr_data(data):
 	for json in data["items"]:
 		var pr = PullRequest.pullrequest_from_datestring(json["closed_at"], json["title"], json["html_url"])
 		pr_array.push_back(pr)
-	pr_array.sort_custom(PullRequest.compare_to)
-	var now = Time.get_datetime_dict_from_system(true)
+	pr_array.sort_custom(PullRequest, "compare_to")
+	var now = OS.get_datetime(true)
 	var latest_year = now["year"] + 1
 	var latest_month = now["month"]
 	var latest_day = now["day"]
@@ -111,20 +144,55 @@ func process_pr_data(data):
 	return r_val
 
 
+func process_commits_data(data):
+	var game_title = ""
+	match Settings.read("game"):
+		"dda":
+			game_title = "Cataclysm: Dark Days Ahead"
+		"bn":
+			game_title = "Cataclysm: Bright Nights"
+		"eod":
+			game_title = "Cataclysm: Era of Decay"
+		"tish":
+			game_title = "Cataclysm: There Is Still Hope"
+		"tlg":
+			game_title = "Cataclysm: The Last Generation"
+		"ccb":
+			game_title = "Cataclysm: Cleanwater Bomb"
+		_:
+			game_title = "{BUG!!}"
+
+	var r_val = tr("str_changelog_intro") % [Settings.read("num_prs_to_request"), game_title]
+	r_val += "\n[i](PR search unavailable — showing commits)[/i]\n"
+
+	var latest_date = ""
+	for commit in data:
+		var date_str = commit.get("commit", {}).get("author", {}).get("date", "")
+		var date = date_str.substr(0, 10) if date_str.length() >= 10 else ""
+		var commit_url = commit.get("html_url", "")
+		var message = commit.get("commit", {}).get("message", "")
+		var title = message.split("\n")[0]
+		if date != latest_date:
+			latest_date = date
+			r_val += "\n[b]" + date + "[/b]\n"
+		r_val += "[indent]• [url=" + commit_url + "]" + title + "[/url][/indent]\n"
+	return r_val
+
+
 func _on_ChangelogText_meta_clicked(meta):
 	OS.shell_open(str(meta))
 
 
 class PullRequest:
-	var timestring : get = get_timestring, set = set_timestring
-	var year : get = get_year
-	var month : get = get_month
-	var day : get = get_day
-	var hour : get = get_hour
-	var minute : get = get_minute
-	var second : get = get_second
-	var summary : get = get_summary
-	var link : get = get_link
+	var timestring setget set_timestring,get_timestring
+	var year setget ,get_year
+	var month setget ,get_month
+	var day setget ,get_day
+	var hour setget ,get_hour
+	var minute setget ,get_minute
+	var second setget ,get_second
+	var summary setget ,get_summary
+	var link setget ,get_link
 	
 	func get_year():
 		return year
@@ -166,7 +234,7 @@ class PullRequest:
 		return a.timestring > b.timestring
 	
 	# We just need to get Github API strings. Nothing else.
-	static func pullrequest_from_datestring(date, sum, lnk):
+	static func pullrequest_from_datestring(date, sum, link):
 		var r_val = PullRequest.new(
 			int(date.substr(0,4)),
 			int(date.substr(5,2)),
@@ -175,7 +243,7 @@ class PullRequest:
 			int(date.substr(14,2)),
 			int(date.substr(16,2)),
 			sum,
-			lnk)
+			link)
 		r_val.set_timestring(date)
 		return r_val
 
@@ -191,3 +259,7 @@ class PullRequest:
 
 	func print_date():
 		return str(year) + "-" + str(month) + "-" + str(day)
+
+
+func _on_BtnCloseChangelog_pressed() -> void:
+	hide()

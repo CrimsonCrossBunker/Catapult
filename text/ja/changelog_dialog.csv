@@ -1,0 +1,9 @@
+"keys","ja"
+,
+"dlg_changelog_title","最近の変更"
+"str_fetching_changes","GitHubから最近の変更を取得中です。お待ちください..."
+"str_error_retrieving_data","GitHub APIからのデータ取得でエラーが発生しました。"
+"str_hhtp_response_code","\n\nHTTP応答コード：%s"
+"str_github_says","\nGitHubは次のように言っています：[i]%s[/i]"
+"str_try_later","\n\n後でもう一度お試しください。"
+"str_changelog_intro","[b]%s[/b]の[b]%s[/b]への最後の[b]%s[/b]個の完了したプルリクエスト（コード追加）を表示しています。\n\n任意の項目をクリックすると、GitHub上で対応するPRを表示して変更について詳しく知ることができます。\n" 

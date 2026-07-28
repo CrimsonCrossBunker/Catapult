@@ -1,6 +1,10 @@
 extends VBoxContainer
 
 
+onready var _mods = $"../../../Mods"
+onready var _sound = $"../../../Sound"
+
+
 func _on_Button_pressed() -> void:
 	
 	# Test modinfo parsing.
@@ -10,10 +14,9 @@ func _on_Button_pressed() -> void:
 	
 	Status.post("Looking for mods in %s" % mods_dir)
 	
-	var mods: Dictionary = %ModManager.parse_mods_dir(mods_dir)
-	for mod in mods:
-		message += "\n" + mods[mod]["modinfo"]["name"]
-		message += "\n(%s)" % mods[mod]["location"]
+	for mod in _mods.parse_mods_dir(mods_dir):
+		message += "\n" + mod["modinfo"]["name"]
+		message += "\n(%s)" % mod["location"]
 	
 	Status.post(message)
 
@@ -27,7 +30,7 @@ func _on_Button2_pressed() -> void:
 	
 	Status.post("Looking for soundpacks in %s" % sound_dir)
 	
-	for pack in %SoundpackManager.parse_sound_dir(sound_dir):
+	for pack in _sound.parse_sound_dir(sound_dir):
 		message += "\nName: %s" % pack["name"]
 		message += "\nDescription: %s" % pack["description"]
 		message += "\nLocation: %s" % pack["location"]
@@ -37,8 +40,9 @@ func _on_Button2_pressed() -> void:
 
 func _on_Button3_pressed():
 	
-	var dir = Paths.own_dir.path_join("testdir")
-	DirAccess.make_dir_absolute(dir)
+	var d = Directory.new()
+	var dir = Paths.own_dir.plus_file("testdir")
+	d.make_dir(dir)
 	
 	var command_linux = {
 		"name": "sh",
@@ -51,32 +55,31 @@ func _on_Button3_pressed():
 	
 	var command
 	match OS.get_name():
-		"Linux":
-			command = command_linux
 		"X11":
 			command = command_linux
 		"Windows":
 			command = command_windows
 	
 	Status.post("Command data: " + str(command))
-	await get_tree().create_timer(2).timeout
+	yield(get_tree().create_timer(2), "timeout")
 	
-	ThreadedExec.execute(command["name"], command["args"])
-	await ThreadedExec.execution_finished
+	var oew = OSExecWrapper.new()
+	oew.execute(command["name"], command["args"])
+	yield(oew, "process_exited")
 
-	Status.post("Command exited with code %s. Output:\n%s" % [ThreadedExec.last_exit_code, ThreadedExec.output[0]])
+	Status.post("Command exited with code %s. Output:\n%s" % [oew.exit_code, oew.output[0]])
 
 
 func _on_Button4_pressed() -> void:
 	
 	Status.post("Testing status messages:\n")
-	await get_tree().create_timer(0.05).timeout
+	yield(get_tree().create_timer(0.05), "timeout")
 	Status.post("This is a normal (info) message.", Enums.MSG_INFO)
-	await get_tree().create_timer(0.05).timeout
+	yield(get_tree().create_timer(0.05), "timeout")
 	Status.post("This is a warning message.", Enums.MSG_WARN)
-	await get_tree().create_timer(0.05).timeout
+	yield(get_tree().create_timer(0.05), "timeout")
 	Status.post("This is an error message.", Enums.MSG_ERROR)
-	await get_tree().create_timer(0.05).timeout
+	yield(get_tree().create_timer(0.05), "timeout")
 	Status.post("This is a debug message.\n", Enums.MSG_DEBUG)
 
 
@@ -84,7 +87,7 @@ func _on_Button5_pressed() -> void:
 	
 	var path = Paths.own_dir
 	Status.post("Listing directory %s..." % path, Enums.MSG_DEBUG)
-	await get_tree().create_timer(0.1).timeout
+	yield(get_tree().create_timer(0.1), "timeout")
 	
 	var listing_msg = "\n"
 	for p in FS.list_dir(path, true):
@@ -103,9 +106,9 @@ func _on_Button7_pressed() -> void:
 	var msg = "PathHelper properties:"
 	
 	for prop in Paths.get_property_list():
-		var p_name = prop["name"]
+		var name = prop["name"]
 		if (prop["type"] == 4):
-			msg += "\n%s: %s" % [p_name, Paths.get(p_name)]
+			msg += "\n%s: %s" % [name, Paths.get(name)]
 	
 	Status.post(msg, Enums.MSG_DEBUG)
 
@@ -130,24 +133,14 @@ func _on_Button9_pressed() -> void:
 	Screen position: %s
 	Screen size: %s
 	Window position: %s
-	Window position with decorations: %s
 	Window size: %s
-	Window size with decorations: %s\n""" % [ \
-	DisplayServer.get_screen_count(),
-	get_window().current_screen,
-	DisplayServer.screen_get_position(),
-	DisplayServer.screen_get_size(),
-	get_window().position,
-	get_window().get_position_with_decorations(),
-	get_window().size,
-	get_window().get_size_with_decorations()]
+	Real window size: %s\n""" % [ \
+	OS.get_screen_count(),
+	OS.current_screen,
+	OS.get_screen_position(),
+	OS.get_screen_size(),
+	OS.window_position,
+	OS.window_size,
+	OS.get_real_window_size()]
 	
 	Status.post(msg, Enums.MSG_DEBUG)
-
-
-func _on_button_10_pressed() -> void:
-	
-	$%BrowseResourcesDialog.current_dir = "res://"
-	$%BrowseResourcesDialog.popup_centered_ratio(0.9)
-	
-	
