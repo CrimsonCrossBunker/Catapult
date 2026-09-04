@@ -11,4 +11,7 @@
 "msg_mod_download_failed","Failed to download mod %s"
 "msg_mod_extraction_failed","Failed to extract mod %s"
 "msg_mod_extraction_error","Extraction error for mod %s: %s"
-
+"msg_ccb_registry_fetching","Loading the CCB MOD catalog..."
+"msg_ccb_registry_loaded","Loaded %s MODs from the CCB catalog."
+"msg_ccb_registry_cached","The CCB MOD catalog is unavailable; using the last saved copy."
+"msg_ccb_registry_failed","The CCB MOD catalog could not be loaded."

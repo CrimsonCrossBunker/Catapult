@@ -117,6 +117,7 @@ var releases = {
 	#"tish-stable": [], Does not exist?
 	"tish-experimental": [],
 	"tlg-experimental":[],
+	"ccb-stable": [],
 	"ccb-experimental": [],
 }
 
@@ -242,8 +243,42 @@ func _on_request_completed_ccb(result: int, response_code: int,
 	if result:
 		Status.post(tr("msg_releases_request_failed"), Enums.MSG_WARN)
 	else:
-		_parse_builds(body, releases["ccb-experimental"],
-				_ASSET_FILTERS["ccb-experimental-" + _platform])
+		var parsed = JSON.parse(body.get_string_from_utf8())
+		if parsed.error == OK and typeof(parsed.result) == TYPE_ARRAY:
+			var prerelease_records = []
+			for release in parsed.result:
+				if not release.get("draft", false) and release.get("prerelease", false):
+					prerelease_records.append(release)
+			releases["ccb-experimental"].clear()
+			_parse_builds(JSON.print(prerelease_records).to_utf8(),
+					releases["ccb-experimental"],
+					_ASSET_FILTERS["ccb-experimental-" + _platform])
+		else:
+			Status.post(tr("msg_releases_request_failed"), Enums.MSG_WARN)
+
+	emit_signal("done_fetching_releases")
+
+
+func _on_request_completed_ccb_stable(result: int, response_code: int,
+		headers: PoolStringArray, body: PoolByteArray) -> void:
+
+	Status.post(tr("msg_http_request_info") %
+			[result, response_code, headers], Enums.MSG_DEBUG)
+
+	if result:
+		Status.post(tr("msg_releases_request_failed"), Enums.MSG_WARN)
+	else:
+		var parsed = JSON.parse(body.get_string_from_utf8())
+		if parsed.error == OK and typeof(parsed.result) == TYPE_ARRAY:
+			var stable_records = []
+			for release in parsed.result:
+				if not release.get("draft", false) and not release.get("prerelease", false):
+					stable_records.append(release)
+			releases["ccb-stable"].clear()
+			_parse_builds(JSON.print(stable_records).to_utf8(), releases["ccb-stable"],
+					_ASSET_FILTERS["ccb-experimental-" + _platform])
+		else:
+			Status.post(tr("msg_releases_request_failed"), Enums.MSG_WARN)
 
 	emit_signal("done_fetching_releases")
 
@@ -509,5 +544,8 @@ func fetch(release_key: String) -> void:
 		"ccb-experimental":
 			Status.post(tr("msg_fetching_releases_ccb"))
 			_request_releases($HTTPRequest_CCB, "ccb-experimental")
+		"ccb-stable":
+			Status.post(tr("msg_fetching_releases") % "CCB Stable")
+			_request_releases($HTTPRequest_CCB_Stable, "ccb-experimental")
 		_:
 			Status.post((tr("msg_invalid_fetch_func_param") % [release_key] ), Enums.MSG_ERROR)

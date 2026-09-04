@@ -20,7 +20,7 @@
 ,
 "tooltip_game","切换要管理或游玩的游戏。"
 "tooltip_changelog","点击从Github加载最近的更新日志。"
-"tooltip_stable","稳定版（仅DDA）。"
+"tooltip_stable","稳定版渠道（支持 DDA、BN 和 CCB）。"
 "tooltip_experimental","测试版。"
 "tooltip_builds","选择游戏要安装或更新到具体哪个版本。"
 "tooltip_refresh","从Github重新检索可用游戏版本列表（仅测试版）。"

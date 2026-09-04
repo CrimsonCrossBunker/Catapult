@@ -21,6 +21,12 @@ require_text scripts/ReleaseManager.gd \
 require_text scripts/ReleaseManager.gd "ccb-linux-with-graphics-and-sounds-x64"
 require_text scripts/ReleaseManager.gd "ccb-windows-with-graphics-and-sounds-x64"
 require_text scripts/ReleaseManager.gd "ccb-osx-with-graphics-universal"
+require_text scripts/ReleaseManager.gd '"ccb-stable": []'
+require_text scripts/ModManager.gd \
+    'https://crimsoncrossbunker.github.io/CCB-MOD/mods.json'
+require_text scripts/ModManager.gd '"source_type": "ccb_registry"'
+require_text scripts/ModManager.gd '^[A-Za-z0-9][A-Za-z0-9_-]{1,63}$'
+require_text scripts/ModManager.gd 'file.store_buffer(body)'
 require_text scripts/settings_manager.gd '"active_install_ccb": ""'
 require_text scripts/path_helper.gd '"ccb"'
 require_text scripts/AboutUI.gd "Dabdoob by Hihahahalol"

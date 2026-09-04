@@ -11,4 +11,8 @@
 "msg_mod_download_failed","下载模组%s失败"
 "msg_mod_extraction_failed","解压模组%s失败"
 "msg_mod_extraction_error","模组%s解压错误：%s"
+"msg_ccb_registry_fetching","正在读取 CCB MOD 列表……"
+"msg_ccb_registry_loaded","已从 CCB MOD 列表读取 %s 个 MOD。"
+"msg_ccb_registry_cached","无法连接 CCB MOD 列表，正在使用上次保存的副本。"
+"msg_ccb_registry_failed","无法读取 CCB MOD 列表。"
 "msg_wiping_mod_repo","正在移除本地存储..."

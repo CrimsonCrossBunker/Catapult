@@ -37,9 +37,15 @@ func _ready() -> void:
 
 	_mods.connect("mod_compatibility_checked", self, "_on_mod_compatibility_checked")
 	_mods.connect("bn_registry_loaded", self, "_on_bn_registry_loaded")
+	_mods.connect("ccb_registry_loaded", self, "_on_ccb_registry_loaded")
 
 
 func _on_bn_registry_loaded() -> void:
+
+	reload_available()
+
+
+func _on_ccb_registry_loaded() -> void:
 
 	reload_available()
 
@@ -85,7 +91,9 @@ func reload_installed() -> void:
 			_installed_mods_view.append({
 				"id": id,
 				"name": mod["modinfo"]["name"],
-				"location": mod["location"]
+				"location": mod["location"],
+				"update_available": false,
+				"date_unavailable": false,
 			})
 			if (show_obsolete) and (status == 3):
 				_installed_mods_view[-1]["name"] += " [obsolete]"
@@ -102,7 +110,11 @@ func reload_installed() -> void:
 				# Check if this is a GitHub mod
 				if available_key != "":
 					var mod_location = _mods.available[available_key]["location"]
-					if mod_location.begins_with("https://github.com/"):
+					if _mods.available[available_key].get("source_type") == "ccb_registry":
+						if mod.get("package_version", "") != _mods.available[available_key].get("version", ""):
+							_installed_mods_view[-1]["update_available"] = true
+							_installed_mods_view[-1]["name"] += " [%s]" % tr("str_update_available")
+					elif mod_location.begins_with("https://github.com/"):
 						# Get stored download date
 						var download_dates = Settings.read("mod_download_dates")
 						if download_dates != null and id in download_dates:
@@ -110,10 +122,12 @@ func reload_installed() -> void:
 							# Get latest GitHub release date
 							var release_date = _mods._get_mod_latest_release_date(available_key)
 							if release_date != "" and release_date > download_date:
-								_installed_mods_view[-1]["name"] += " [update available]"
+								_installed_mods_view[-1]["update_available"] = true
+								_installed_mods_view[-1]["name"] += " [%s]" % tr("str_update_available")
 						else:
 							# No download date found
-							_installed_mods_view[-1]["name"] += " [Date Unavailable]"
+							_installed_mods_view[-1]["date_unavailable"] = true
+							_installed_mods_view[-1]["name"] += " [%s]" % tr("str_date_unavailable")
 	
 	_installed_mods_view.sort_custom(self, "_sorting_comparison")
 	
@@ -128,15 +142,14 @@ func reload_installed() -> void:
 	
 	for i in len(_installed_mods_view):
 		var id = _installed_mods_view[i]["id"]
-		var mod_name = _installed_mods_view[i]["name"]
 		
 		if _mods.installed[id]["is_stock"]:
 			_installed_list.set_item_custom_fg_color(i, Color(0.5, 0.5, 0.5))
 			# TODO: Get color from the theme instead.
-		elif mod_name.find("[update available]") != -1:
+		elif _installed_mods_view[i]["update_available"]:
 			# Green color for mods with updates available
 			_installed_list.set_item_custom_fg_color(i, Color(0.2, 0.8, 0.2))
-		elif mod_name.find("[Date Unavailable]") != -1:
+		elif _installed_mods_view[i]["date_unavailable"]:
 			# Orange/yellow color for mods with unknown date
 			_installed_list.set_item_custom_fg_color(i, Color(1.0, 0.65, 0.0))
 
@@ -169,6 +182,16 @@ func reload_available() -> void:
 		_available_mods_view.clear()
 		_available_list.clear()
 		_available_list.add_item("Loading mods from mods.cataclysmbn.org...")
+		_available_list.set_item_disabled(0, true)
+		_available_list.set_item_custom_fg_color(0, Color(0.7, 0.7, 0.7))
+		_lbl_repo.text = tr("lbl_mod_repo") % ""
+		_btn_add.disabled = true
+		_btn_add_all.disabled = true
+		return
+	elif game == "ccb" and len(_mods.available) == 0:
+		_available_mods_view.clear()
+		_available_list.clear()
+		_available_list.add_item(tr("msg_ccb_registry_fetching"))
 		_available_list.set_item_disabled(0, true)
 		_available_list.set_item_custom_fg_color(0, Color(0.7, 0.7, 0.7))
 		_lbl_repo.text = tr("lbl_mod_repo") % ""
@@ -213,6 +236,18 @@ func reload_available() -> void:
 		var id = _available_mods_view[i]["id"]
 		if _mods.mod_status(id) in [1, 2, 4]:
 			_available_list.set_item_custom_fg_color(i, Color(0.5, 0.5, 0.5))
+		elif _mods.available[id].get("source_type") == "ccb_registry":
+			var validation_status = _mods.available[id].get("validation", {}).get("status", "not-tested")
+			var current_text = _available_list.get_item_text(i)
+			if validation_status == "passed":
+				_available_list.set_item_custom_fg_color(i, Color(0.2, 0.8, 0.2))
+				_available_list.set_item_text(i, "[%s] %s" % [tr("str_validation_passed"), current_text])
+			elif validation_status == "failed":
+				_available_list.set_item_custom_fg_color(i, Color(0.8, 0.2, 0.2))
+				_available_list.set_item_text(i, "[%s] %s" % [tr("str_validation_failed"), current_text])
+			else:
+				_available_list.set_item_custom_fg_color(i, Color(1.0, 0.75, 0.15))
+				_available_list.set_item_text(i, "[%s] %s" % [tr("str_validation_not_tested"), current_text])
 		else:
 			# Apply color and status indicators for all channels (both stable and experimental)
 			var mod_release_date = _mods._get_mod_latest_release_date(id)
@@ -291,6 +326,30 @@ func _make_mod_info_string(mod: Dictionary) -> String:
 		
 	if "maintainers" in modinfo and len(modinfo["maintainers"]) > 0:
 		result += "[b][u]%s[/u][/b] %s\n" % [tr("str_mod_maintainers"), _array_to_text_list(modinfo["maintainers"])]
+	if len(modinfo.get("dependencies", [])) > 0:
+		result += "[b][u]%s[/u][/b] %s\n" % [tr("str_mod_dependencies"), _array_to_text_list(modinfo["dependencies"])]
+	if len(modinfo.get("conflicts", [])) > 0:
+		result += "[b][u]%s[/u][/b] %s\n" % [tr("str_mod_conflicts"), _array_to_text_list(modinfo["conflicts"])]
+
+	if mod.get("source_type") == "ccb_registry":
+		result += "[b][u]%s[/u][/b] %s\n" % [tr("str_mod_type"), tr("str_type_ccb_maintained") if mod.get("registry_type") == "ccb-maintained" else tr("str_type_community")]
+		result += "[b][u]%s[/u][/b] %s\n" % [tr("str_mod_version"), mod.get("version", "")]
+		result += "[b][u]%s[/u][/b] %s\n" % [tr("str_ccb_versions"), _array_to_text_list(mod.get("ccb_versions", []))]
+		if mod.get("lua_api", null) != null:
+			result += "[b][u]%s[/u][/b] %s\n" % [tr("str_lua_api"), str(mod["lua_api"])]
+		result += "[b][u]%s[/u][/b] %s\n" % [tr("str_ccb_adapters"), _array_to_text_list(mod.get("ccb_adapters", [])) if len(mod.get("ccb_adapters", [])) > 0 else tr("str_none")]
+		result += "[b][u]%s[/u][/b] %s\n" % [tr("str_license"), mod.get("license", "")]
+		var validation = mod.get("validation", {})
+		var validation_text = tr("str_validation_not_tested")
+		if validation.get("status") == "passed":
+			validation_text = tr("str_validation_passed")
+		elif validation.get("status") == "failed":
+			validation_text = tr("str_validation_failed")
+		if validation.get("checked_at", null) != null:
+			validation_text += " (%s)" % validation["checked_at"]
+		result += "[b][u]%s[/u][/b] %s\n" % [tr("str_validation"), validation_text]
+		if mod.get("issues", "") != "":
+			result += "[b][u]%s[/u][/b] [color=#3b93f7][url=%s]%s[/url][/color]\n" % [tr("str_issues"), mod["issues"], mod["issues"]]
 	
 	# Add mod URL for downloadable mods
 	var mod_dict_key = ""
@@ -562,17 +621,28 @@ func _on_BtnAddSelectedMod_pressed() -> void:
 	_mods_to_install = []
 	var num_stock = 0
 	var incompatible_mods = []
+	var missing_dependencies = []
+	var active_conflicts = []
 
 	for index in selection:
 		var id = _available_mods_view[index]["id"]
 		var status = _mods.mod_status(id)
 		if status == 2:
-				num_stock += 1
+			num_stock += 1
 		else:
 			_mods_to_install.append(id)
 			# Check for incompatible mods in all channels (both stable and experimental)
 			if not _mods.is_mod_compatible(id):
 				incompatible_mods.append(_mods.available[id]["modinfo"]["name"])
+
+	for mod_id in _mods_to_install:
+		var modinfo = _mods.available[mod_id]["modinfo"]
+		for dependency in modinfo.get("dependencies", []):
+			if not dependency in _mods.installed and not dependency in _mods_to_install:
+				missing_dependencies.append("%s → %s" % [modinfo["name"], dependency])
+		for conflict in modinfo.get("conflicts", []):
+			if conflict in _mods.installed or conflict in _mods_to_install:
+				active_conflicts.append("%s ↔ %s" % [modinfo["name"], conflict])
 
 	if num_stock == 1:
 		Status.post(tr("msg_mod_install_one_mod_skipped"))
@@ -581,8 +651,11 @@ func _on_BtnAddSelectedMod_pressed() -> void:
 
 	# Warn about incompatible mods
 	if len(incompatible_mods) > 0:
-		var warning_msg = "Warning: The following mods may be incompatible with the current game release: " + str(incompatible_mods)
-		Status.post(warning_msg, Enums.MSG_WARN)
+		Status.post(tr("msg_mod_incompatible") % _array_to_text_list(incompatible_mods), Enums.MSG_WARN)
+	if len(missing_dependencies) > 0:
+		Status.post(tr("msg_mod_missing_dependencies") % _array_to_text_list(missing_dependencies), Enums.MSG_WARN)
+	if len(active_conflicts) > 0:
+		Status.post(tr("msg_mod_active_conflicts") % _array_to_text_list(active_conflicts), Enums.MSG_WARN)
 
 	_ids_to_install = []	# What to install from scratch.
 	_ids_to_delete = []		# What to delete before reinstalling.

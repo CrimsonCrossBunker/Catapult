@@ -24,7 +24,7 @@
 ,
 "tooltip_game","Choose which game to manage or play."
 "tooltip_changelog","Click to load a summary of latest changes from GitHub."
-"tooltip_stable","Stable release channel (DDA only)."
+"tooltip_stable","Stable release channel (DDA, BN, and CCB)."
 "tooltip_experimental","Experimental release channel."
 "tooltip_bn_rolling","Use the latest rolling experimental build\n(from cataclysmbn/Cataclysm-BN). Only visible for BN experimental."
 "tooltip_builds","Choose which release of the game to install or update to."
