@@ -1,4 +1,13 @@
 "keys","zh"
+"str_ccb_passed","已在当前游戏版本验证"
+"str_ccb_failed","验证失败"
+"str_ccb_not-tested","未在当前游戏版本验证"
+"str_ccb_version-mismatch","未声明支持当前游戏版本"
+"str_ccb_api-mismatch","Lua API 不匹配"
+"str_ccb_current_compatibility","当前游戏适配情况"
+"msg_ccb_replace_failed","无法替换 %s，原 MOD 已保留或恢复。"
+"msg_ccb_restore_failed","无法自动恢复原 MOD，请从此目录恢复：%s"
+"rbtn_ccb_candidates","实验版 / 候选版"
 ,
 "lbl_installed_mods","已安装%s："
 "str_installed_mods_hidden","（%s 隐藏）"

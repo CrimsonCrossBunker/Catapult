@@ -603,6 +603,7 @@ func apply_game_choice() -> void:
 
 	var game = Settings.read("game")
 	var channel = Settings.read("channel")
+	_rbtn_exper.text = tr("rbtn_ccb_candidates") if game == "ccb" else tr("rbtn_experimental")
 	
 	_cb_bn_rolling.visible = (game == "bn") and (channel == "experimental")
 	if game == "bn":

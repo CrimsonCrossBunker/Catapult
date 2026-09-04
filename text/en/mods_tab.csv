@@ -1,4 +1,13 @@
 "keys","en"
+"str_ccb_passed","Verified for this game version"
+"str_ccb_failed","Validation failed"
+"str_ccb_not-tested","Not verified for this game version"
+"str_ccb_version-mismatch","Game version not listed"
+"str_ccb_api-mismatch","Lua API mismatch"
+"str_ccb_current_compatibility","Current game"
+"msg_ccb_replace_failed","Could not replace %s. The existing MOD has been kept or restored."
+"msg_ccb_restore_failed","Could not restore the old MOD automatically. Recover it from: %s"
+"rbtn_ccb_candidates","Experimental / Candidate"
 ,
 "lbl_installed_mods","Installed%s:"
 "str_installed_mods_hidden"," (%s hidden)"

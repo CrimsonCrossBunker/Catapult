@@ -124,6 +124,11 @@ func parse_mods_dir(mods_dir: String) -> Dictionary:
 						"location": mods_dir.plus_file(subdir),
 						"modinfo": info
 					}
+					if f.file_exists(launcher_info):
+						var marker = Helpers.load_json_file(launcher_info)
+						if typeof(marker) == TYPE_DICTIONARY and marker.get("id") == info["id"]:
+							result[info["id"]]["package_version"] = marker.get("version", "")
+							result[info["id"]]["source_type"] = marker.get("source_type", "")
 					break
 					
 			f.close()
@@ -784,7 +789,7 @@ func _process_downloaded_mod(body: PoolByteArray, mod_name: String) -> void:
 	var mods_dir = Paths.mods_user
 	var filename = mod_id + ".zip"
 	var archive = Paths.cache_dir.plus_file(filename)
-	var tmp_dir = Paths.tmp_dir.plus_file(mod_id)
+	var tmp_dir = Paths.tmp_dir.plus_file(mod_id + "-" + str(OS.get_ticks_usec()))
 	
 	# Ensure the mods directory exists with proper permissions on macOS
 	var d = Directory.new()
@@ -824,6 +829,25 @@ func _process_downloaded_mod(body: PoolByteArray, mod_name: String) -> void:
 		Directory.new().remove(archive)
 	
 	if FS.last_extract_result == 0:
+		if mod.get("source_type") == "ccb_registry":
+			var package = preload("res://scripts/RegistryPackage.gd").new()
+			var source = package.find_mod(tmp_dir, mod_id)
+			if source.empty():
+				Status.post(tr("msg_mod_extraction_failed") % mod_name, Enums.MSG_ERROR)
+			else:
+				_write_catapult_mod_marker(source, mod_id, mod)
+				var backup = mods_dir.get_base_dir().plus_file("mod-backups").plus_file(mod_id + "-" + str(OS.get_unix_time()) + "-" + str(OS.get_ticks_usec()))
+				var destination = mods_dir.plus_file(mod_id)
+				if mod_id in installed and not installed[mod_id].get("is_stock", false):
+					destination = installed[mod_id]["location"]
+				if not File.new().file_exists(source.plus_file("catapult_mod.meta")) or package.replace_directory(source, destination, backup) != OK:
+					Status.post(tr("msg_ccb_replace_failed") % mod_name, Enums.MSG_ERROR)
+				else:
+					Status.post(tr("msg_mod_installed") % mod_name, Enums.MSG_SUCCESS)
+			FS.rm_dir(tmp_dir)
+			yield(FS, "rm_dir_done")
+			emit_signal("_done_installing_mod")
+			return
 		# Find the extracted directory (GitHub releases can have various structures)
 		var contents = FS.list_dir(tmp_dir)
 		if contents.size() > 0:
@@ -911,7 +935,7 @@ func _download_and_install_mod(download_url: String, mod_name: String) -> void:
 	var archive = Paths.cache_dir.plus_file(filename)
 	
 	# Use cached version if available and caching is enabled
-	if not Settings.read("ignore_cache") and Directory.new().file_exists(archive):
+	if available[mod_id].get("source_type") != "ccb_registry" and not Settings.read("ignore_cache") and Directory.new().file_exists(archive):
 		Status.post("Using cached version of %s" % mod_name, Enums.MSG_INFO)
 		var file = File.new()
 		if file.open(archive, File.READ) == OK:
@@ -1070,7 +1094,7 @@ func is_mod_compatible(mod_id: String) -> bool:
 	if not mod_id in available:
 		return false
 	if available[mod_id].get("source_type") == "ccb_registry":
-		return available[mod_id].get("validation", {}).get("status", "not-tested") != "failed"
+		return registry_compatibility(available[mod_id], read_ccb_version(Paths.game_dir)) == "passed"
 	
 	var mod_info = available[mod_id]["modinfo"]
 	if not "stability" in mod_info:
@@ -1097,6 +1121,36 @@ func is_mod_compatible(mod_id: String) -> bool:
 	
 	# Check if mod is still within its stability window
 	return days_since_mod_release <= max_days
+
+
+func read_ccb_version(game_dir: String) -> Dictionary:
+	var file = File.new()
+	if game_dir.empty() or file.open(game_dir.plus_file("VERSION.txt"), File.READ) != OK:
+		return {}
+	var metadata = {}
+	for line in file.get_as_text().split("\n"):
+		var colon = line.find(":")
+		if colon >= 0:
+			metadata[line.substr(0, colon).strip_edges()] = line.substr(colon + 1).strip_edges()
+	file.close()
+	return metadata
+
+
+func registry_compatibility(mod: Dictionary, game: Dictionary) -> String:
+	var tag = game.get("release tag", "")
+	if tag.empty():
+		return "not-tested"
+	if not tag in mod.get("ccb_versions", []):
+		return "version-mismatch"
+	if mod.get("lua_api", null) != null:
+		if not game.has("lua api"):
+			return "not-tested"
+		if str(mod["lua_api"]) != str(game["lua api"]):
+			return "api-mismatch"
+	var validation = mod.get("validation", {})
+	if validation.get("ccb_version", "") != tag:
+		return "not-tested"
+	return validation.get("status", "not-tested")
 
 
 # Get the latest release date for a specific mod's GitHub repository
