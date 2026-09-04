@@ -62,6 +62,24 @@ func _init() -> void:
 	if entry["modinfo"].get("conflicts", []) != ["other_mod"]:
 		fail("CCB conflicts were not retained")
 		return
+	var game = {"release tag": "0.Ag", "lua api": "1"}
+	entry["validation"]["ccb_version"] = "0.Ag"
+	if manager.registry_compatibility(entry, game) != "passed":
+		fail("Exact game/API validation should pass")
+		return
+	for scenario in [
+		[{"release tag": "different", "lua api": "1"}, "version-mismatch"],
+		[{"release tag": "0.Ag", "lua api": "2"}, "api-mismatch"],
+		[{}, "not-tested"],
+		[{"release tag": "0.Ag"}, "not-tested"],
+	]:
+		if manager.registry_compatibility(entry, scenario[0]) != scenario[1]:
+			fail("Incorrect compatibility for " + str(scenario[0]))
+			return
+	entry["validation"]["ccb_version"] = "older"
+	if manager.registry_compatibility(entry, game) != "not-tested":
+		fail("Validation for another game must not imply current compatibility")
+		return
 
 	var lua_mod_path = "res://tests/fixtures/lua_mod"
 	if manager._find_mod_directory(lua_mod_path) != lua_mod_path:
@@ -74,4 +92,37 @@ func _init() -> void:
 	if installed["registry_smoke"].get("package_version") != "1.2.3":
 		fail("installed registry MOD version was not retained")
 		return
+	manager.free()
+	var package = load("res://scripts/RegistryPackage.gd").new()
+	if package.find_mod(lua_mod_path, "registry_smoke") != lua_mod_path:
+		fail("Root Lua package rejected")
+		return
+	var test_root = "user://registry-replace-" + str(OS.get_ticks_usec())
+	var directory = Directory.new()
+	directory.make_dir_recursive(test_root.plus_file("old"))
+	directory.make_dir_recursive(test_root.plus_file("new"))
+	var marker = File.new()
+	marker.open(test_root.plus_file("old/old.txt"), File.WRITE)
+	marker.store_string("old MOD")
+	marker.close()
+	marker.open(test_root.plus_file("new/new.txt"), File.WRITE)
+	marker.store_string("new MOD")
+	marker.close()
+	if package.replace_directory(test_root.plus_file("missing"), test_root.plus_file("old"), test_root.plus_file("backup")) == OK or not marker.file_exists(test_root.plus_file("old/old.txt")):
+		fail("Invalid replacement must retain old MOD")
+		return
+	if package.replace_directory(test_root.plus_file("new"), test_root.plus_file("old"), test_root.plus_file("backup")) != OK:
+		fail("Valid replacement failed")
+		return
+	if not marker.file_exists(test_root.plus_file("old/new.txt")) or not marker.file_exists(test_root.plus_file("backup/old.txt")):
+		fail("Replacement did not retain backup")
+		return
+	directory.make_dir_recursive(test_root.plus_file("old/nested"))
+	if package.replace_directory(test_root.plus_file("old/nested"), test_root.plus_file("old"), test_root.plus_file("rollback")) == OK:
+		fail("Expected injected rename failure")
+		return
+	if not marker.file_exists(test_root.plus_file("old/new.txt")) or directory.dir_exists(test_root.plus_file("rollback")):
+		fail("Rename failure did not restore the old MOD")
+		return
+	get_root().get_node("FS")._rm_dir_internal([test_root])
 	quit(0)

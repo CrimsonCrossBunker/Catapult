@@ -237,14 +237,14 @@ func reload_available() -> void:
 		if _mods.mod_status(id) in [1, 2, 4]:
 			_available_list.set_item_custom_fg_color(i, Color(0.5, 0.5, 0.5))
 		elif _mods.available[id].get("source_type") == "ccb_registry":
-			var validation_status = _mods.available[id].get("validation", {}).get("status", "not-tested")
+			var validation_status = _mods.registry_compatibility(_mods.available[id], _mods.read_ccb_version(Paths.game_dir))
 			var current_text = _available_list.get_item_text(i)
 			if validation_status == "passed":
 				_available_list.set_item_custom_fg_color(i, Color(0.2, 0.8, 0.2))
 				_available_list.set_item_text(i, "[%s] %s" % [tr("str_validation_passed"), current_text])
-			elif validation_status == "failed":
+			elif validation_status in ["failed", "version-mismatch", "api-mismatch"]:
 				_available_list.set_item_custom_fg_color(i, Color(0.8, 0.2, 0.2))
-				_available_list.set_item_text(i, "[%s] %s" % [tr("str_validation_failed"), current_text])
+				_available_list.set_item_text(i, "[%s] %s" % [tr("str_ccb_" + validation_status), current_text])
 			else:
 				_available_list.set_item_custom_fg_color(i, Color(1.0, 0.75, 0.15))
 				_available_list.set_item_text(i, "[%s] %s" % [tr("str_validation_not_tested"), current_text])
@@ -347,7 +347,10 @@ func _make_mod_info_string(mod: Dictionary) -> String:
 			validation_text = tr("str_validation_failed")
 		if validation.get("checked_at", null) != null:
 			validation_text += " (%s)" % validation["checked_at"]
+		if validation.get("ccb_version", null) != null:
+			validation_text += " — " + str(validation["ccb_version"])
 		result += "[b][u]%s[/u][/b] %s\n" % [tr("str_validation"), validation_text]
+		result += "[b][u]%s[/u][/b] %s\n" % [tr("str_ccb_current_compatibility"), tr("str_ccb_" + _mods.registry_compatibility(mod, _mods.read_ccb_version(Paths.game_dir)))]
 		if mod.get("issues", "") != "":
 			result += "[b][u]%s[/u][/b] [color=#3b93f7][url=%s]%s[/url][/color]\n" % [tr("str_issues"), mod["issues"], mod["issues"]]
 	
@@ -689,8 +692,13 @@ func _on_BtnAddAllMods_pressed() -> void:
 func _do_mod_installation() -> void:
 	
 	if len(_ids_to_delete) > 0:
-		_mods.delete_mods(_ids_to_reinstall)
-		yield(_mods, "mod_deletion_finished")
+		var legacy_deletes = []
+		for id in _ids_to_reinstall:
+			if _mods.available[id].get("source_type") != "ccb_registry":
+				legacy_deletes.append(id)
+		if not legacy_deletes.empty():
+			_mods.delete_mods(legacy_deletes)
+			yield(_mods, "mod_deletion_finished")
 		_mods.install_mods(_ids_to_install + _ids_to_reinstall)
 		yield(_mods, "mod_installation_finished")
 	else:
