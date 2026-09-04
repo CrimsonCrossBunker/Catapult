@@ -476,8 +476,9 @@ func _parse_builds(data: PoolByteArray, write_to: Array, filter: Dictionary) -> 
 
 	for rec in json:
 		var build = {}
-		build["name"] = rec["name"]
-		if Settings.read("shorten_release_names"):
+		var ccb_release = filter["substring"].begins_with("ccb-")
+		build["name"] = rec.get("tag_name", rec["name"]) if ccb_release else rec["name"]
+		if Settings.read("shorten_release_names") and not ccb_release:
 			build["name"] = build["name"].split(" ")[-1]
 		build["url"] = ""
 		build["filename"] = ""
