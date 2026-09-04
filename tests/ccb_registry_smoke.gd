@@ -93,6 +93,18 @@ func _init() -> void:
 		fail("installed registry MOD version was not retained")
 		return
 	manager.free()
+	var releases = load("res://scripts/ReleaseManager.gd").new()
+	var builds = []
+	get_root().get_node("Settings").store("shorten_release_names", true)
+	releases._parse_builds(JSON.print([{
+		"name": "0.Ag Candidate 2026-09-05_02:19",
+		"tag_name": "0.Ag-Candidate-2026-09-05-0219",
+		"assets": [],
+	}]).to_utf8(), builds, {"substring": "ccb-linux", "field": "name"})
+	if builds[0]["name"] != "0.Ag-Candidate-2026-09-05-0219":
+		fail("CCB release tags must remain visible even with shortened names")
+		return
+	releases.free()
 	var package = load("res://scripts/RegistryPackage.gd").new()
 	if package.find_mod(lua_mod_path, "registry_smoke") != lua_mod_path:
 		fail("Root Lua package rejected")
