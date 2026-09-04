@@ -1738,6 +1738,8 @@ __meta__ = {
 
 [node name="HTTPRequest_CCB" type="HTTPRequest" parent="Releases"]
 
+[node name="HTTPRequest_CCB_Stable" type="HTTPRequest" parent="Releases"]
+
 [node name="HTTPRequest_DDA_Stable" type="HTTPRequest" parent="Releases"]
 
 [node name="HTTPRequest_BN_Stable" type="HTTPRequest" parent="Releases"]
@@ -1885,6 +1887,7 @@ __meta__ = {
 [connection signal="request_completed" from="Releases/HTTPRequest_TISH" to="Releases" method="_on_request_completed_tish"]
 [connection signal="request_completed" from="Releases/HTTPRequest_TLG" to="Releases" method="_on_request_completed_tlg"]
 [connection signal="request_completed" from="Releases/HTTPRequest_CCB" to="Releases" method="_on_request_completed_ccb"]
+[connection signal="request_completed" from="Releases/HTTPRequest_CCB_Stable" to="Releases" method="_on_request_completed_ccb_stable"]
 [connection signal="request_completed" from="Releases/HTTPRequest_DDA_Stable" to="Releases" method="_on_request_completed_dda_stable"]
 [connection signal="request_completed" from="Releases/HTTPRequest_BN_Stable" to="Releases" method="_on_request_completed_bn_stable"]
 [connection signal="request_completed" from="Releases/HTTPRequest_BN_Rolling" to="Releases" method="_on_request_completed_bn_rolling"]

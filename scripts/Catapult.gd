@@ -356,7 +356,6 @@ func _on_GamesList_item_selected(index: int) -> void:
 			_game_desc.bbcode_text = tr("desc_tish")
 		5:
 			Settings.store("game", "ccb")
-			Settings.store("channel", "experimental")
 			_game_desc.bbcode_text = tr("desc_ccb")
 
 	# Reset mod fetch session tracking when game type changes
@@ -380,7 +379,7 @@ func _on_CbBNRolling_toggled(button_pressed: bool) -> void:
 
 
 func _on_RBtnStable_toggled(button_pressed: bool) -> void:
-	if Settings.read("game") in ["eod", "tish", "tlg", "ccb"]:
+	if Settings.read("game") in ["eod", "tish", "tlg"]:
 		Settings.store("channel", "experimental")
 		if button_pressed:
 			_rbtn_exper.pressed = true
@@ -609,13 +608,13 @@ func apply_game_choice() -> void:
 	if game == "bn":
 		_cb_bn_rolling.pressed = Settings.read("bn_rolling_experimental")
 
-	if (game == "dda") or (game == "bn"):
+	if game in ["dda", "bn", "ccb"]:
 		_rbtn_exper.disabled = false
 		_rbtn_stable.disabled = false
 		if channel == "stable":
 			_rbtn_stable.pressed = true
 		_btn_refresh.disabled = false
-	elif game in ["eod", "tish", "tlg", "ccb"]:
+	elif game in ["eod", "tish", "tlg"]:
 		# These Forks do not have a stable channel
 		Settings.store("channel", "experimental")
 		channel = "experimental"

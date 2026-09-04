@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "id": "registry_smoke",
+  "version": "1.2.3",
+  "source_type": "ccb_registry",
+  "download": "https://example.invalid/registry_smoke.zip",
+  "source": "https://example.invalid/source",
+  "modinfo": {
+    "id": "registry_smoke",
+    "name": "Registry smoke test",
+    "authors": ["author"],
+    "maintainers": ["maintainer"],
+    "description": "Test",
+    "category": "content",
+    "dependencies": [],
+    "conflicts": []
+  }
+}

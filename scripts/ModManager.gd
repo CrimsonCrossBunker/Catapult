@@ -9,6 +9,10 @@ signal mod_deletion_finished
 signal _done_installing_mod
 signal _done_deleting_mod
 signal bn_registry_loaded
+signal ccb_registry_loaded
+
+const CCB_REGISTRY_URL = "https://crimsoncrossbunker.github.io/CCB-MOD/mods.json"
+const CCB_REGISTRY_CACHE = "ccb_mod_registry.json"
 
 # Stability rating mappings (in days)
 const STABILITY_RATINGS = {
@@ -34,6 +38,9 @@ var _pending_api_calls: Array = []
 # registry request completes, so without this flag every read of `.available`
 # while it's pending spawns another HTTPRequest.
 var _bn_registry_fetch_in_progress := false
+var _ccb_registry_fetch_in_progress := false
+var _ccb_registry_ready := false
+var _available_game := ""
 
 signal mod_compatibility_checked(compatible_count, incompatible_count)
 
@@ -48,7 +55,7 @@ func _get_installed() -> Dictionary:
 
 func _get_available() -> Dictionary:
 	
-	if len(available) == 0:
+	if len(available) == 0 and not (Settings.read("game") == "ccb" and _ccb_registry_ready):
 		refresh_available()
 	
 	return available
@@ -64,6 +71,29 @@ func parse_mods_dir(mods_dir: String) -> Dictionary:
 	for subdir in FS.list_dir(mods_dir):
 		var f = File.new()
 		var modinfo = mods_dir.plus_file(subdir).plus_file("modinfo.json")
+		var launcher_info = mods_dir.plus_file(subdir).plus_file("catapult_mod.meta")
+
+		# Lua Platform MODs do not require modinfo.json. Catapult writes this
+		# small marker after installing a registry package so they remain
+		# visible and updatable in the launcher.
+		if not f.file_exists(modinfo) and f.file_exists(launcher_info):
+			f.open(launcher_info, File.READ)
+			var launcher_json = JSON.parse(f.get_as_text())
+			f.close()
+			if launcher_json.error != OK or typeof(launcher_json.result) != TYPE_DICTIONARY:
+				Status.post(tr("msg_mod_json_parsing_failed") % launcher_info, Enums.MSG_ERROR)
+				continue
+			var marker = launcher_json.result
+			if not "id" in marker or not "modinfo" in marker:
+				Status.post(tr("msg_mod_json_parsing_failed") % launcher_info, Enums.MSG_ERROR)
+				continue
+			result[marker["id"]] = {
+				"location": mods_dir.plus_file(subdir),
+				"modinfo": marker["modinfo"],
+				"package_version": marker.get("version", ""),
+				"source_type": marker.get("source_type", ""),
+			}
+			continue
 		
 		if f.file_exists(modinfo):
 			
@@ -166,19 +196,23 @@ func refresh_installed():
 
 
 func refresh_available():
+	var selected_game = Settings.read("game")
+	if selected_game != _available_game:
+		_available_game = selected_game
+		_ccb_registry_ready = false
 	
 	# Mods are not supported for TISH
-	if Settings.read("game") == "tish":
+	if selected_game == "tish":
 		available = {}
 		return
 	
 	# Mods are not supported for EOD
-	if Settings.read("game") == "eod":
+	if selected_game == "eod":
 		available = {}
 		return
 	
 	# Custom mods for TLG (Cataclysm: The Last Generation)
-	if Settings.read("game") == "tlg":
+	if selected_game == "tlg":
 		available = {
 			"MindOverMatter": {
 				"location": "https://github.com/Vegetabs/MindOverMatter-CTLG",
@@ -220,12 +254,17 @@ func refresh_available():
 				}
 			}
 		}
-	elif Settings.read("game") == "bn":
+	elif selected_game == "bn":
 		available = {}
 		_fetch_bn_mods_from_registry()
 		return
 			# Custom mods for DDA (Dark Days Ahead)
-	elif Settings.read("game") in ["dda", "ccb"]:
+	elif selected_game == "ccb":
+		available = {}
+		if not _ccb_registry_ready:
+			_fetch_ccb_mods_from_registry()
+		return
+	elif selected_game == "dda":
 		available = {
 			"ArcanaAndMagicItems": {
 				"location": "https://github.com/Zlorthishen/cdda-arcana-mod",
@@ -378,6 +417,133 @@ func _on_bn_registry_received(result: int, response_code: int, _headers: PoolStr
 
 	Status.post("Loaded %d mods from BN registry." % available.size(), Enums.MSG_SUCCESS)
 	emit_signal("bn_registry_loaded")
+
+
+func _ccb_registry_cache_path() -> String:
+	return Paths.cache_dir.plus_file(CCB_REGISTRY_CACHE)
+
+
+func _localized_catalog_text(value) -> String:
+	if typeof(value) == TYPE_STRING:
+		return value
+	if typeof(value) != TYPE_DICTIONARY:
+		return ""
+	var preferred = "zh-Hans" if TranslationServer.get_locale().begins_with("zh") else "en"
+	if preferred in value:
+		return value[preferred]
+	if "zh-Hans" in value:
+		return value["zh-Hans"]
+	if "en" in value:
+		return value["en"]
+	return ""
+
+
+func _is_safe_registry_id(mod_id: String) -> bool:
+	var pattern = RegEx.new()
+	if pattern.compile("^[A-Za-z0-9][A-Za-z0-9_-]{1,63}$") != OK:
+		return false
+	return pattern.search(mod_id) != null
+
+
+func _load_ccb_catalog(catalog: Dictionary) -> bool:
+	if catalog.get("schema_version", 0) != 1 or typeof(catalog.get("mods", null)) != TYPE_ARRAY:
+		return false
+
+	var loaded := {}
+	for entry in catalog["mods"]:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		if not entry.has_all(["id", "type", "name", "description", "version", "download", "source"]):
+			continue
+		var mod_id = str(entry["id"])
+		var download_url = str(entry["download"])
+		if not _is_safe_registry_id(mod_id) or not download_url.begins_with("https://"):
+			continue
+		loaded[mod_id] = {
+			"location": download_url,
+			"source_type": "ccb_registry",
+			"registry_type": entry["type"],
+			"homepage": entry["source"],
+			"issues": entry.get("issues", entry["source"]),
+			"version": entry["version"],
+			"ccb_versions": entry.get("ccb_versions", []),
+			"lua_api": entry.get("lua_api", null),
+			"ccb_adapters": entry.get("ccb_adapters", []),
+			"license": entry.get("license", ""),
+			"validation": entry.get("validation", {"status": "not-tested"}),
+			"last_updated": entry.get("updated_at", ""),
+			"modinfo": {
+				"id": mod_id,
+				"name": _strip_html_tags(_localized_catalog_text(entry["name"])),
+				"authors": entry.get("authors", []),
+				"maintainers": entry.get("maintainers", []),
+				"description": _strip_html_tags(_localized_catalog_text(entry["description"])),
+				"category": "content",
+				"dependencies": entry.get("dependencies", []),
+				"conflicts": entry.get("conflicts", []),
+			}
+		}
+
+	available = loaded
+	return true
+
+
+func _load_cached_ccb_catalog() -> bool:
+	var path = _ccb_registry_cache_path()
+	if not File.new().file_exists(path):
+		return false
+	var cached = Helpers.load_json_file(path)
+	if typeof(cached) != TYPE_DICTIONARY:
+		return false
+	return _load_ccb_catalog(cached)
+
+
+func _fetch_ccb_mods_from_registry() -> void:
+	if _ccb_registry_fetch_in_progress:
+		return
+	_ccb_registry_fetch_in_progress = true
+	Status.post(tr("msg_ccb_registry_fetching"), Enums.MSG_INFO)
+	var http = HTTPRequest.new()
+	add_child(http)
+	if Settings.read("proxy_option") == "on":
+		http.set_http_proxy(Settings.read("proxy_host"), Settings.read("proxy_port") as int)
+		http.set_https_proxy(Settings.read("proxy_host"), Settings.read("proxy_port") as int)
+	http.connect("request_completed", self, "_on_ccb_registry_received", [http])
+	if http.request(CCB_REGISTRY_URL) != OK:
+		remove_child(http)
+		http.queue_free()
+		_ccb_registry_fetch_in_progress = false
+		_ccb_registry_ready = true
+		if _load_cached_ccb_catalog():
+			Status.post(tr("msg_ccb_registry_cached"), Enums.MSG_WARN)
+		else:
+			Status.post(tr("msg_ccb_registry_failed"), Enums.MSG_ERROR)
+		emit_signal("ccb_registry_loaded")
+
+
+func _on_ccb_registry_received(result: int, response_code: int, _headers: PoolStringArray, body: PoolByteArray, http: HTTPRequest) -> void:
+	remove_child(http)
+	http.queue_free()
+	_ccb_registry_fetch_in_progress = false
+	_ccb_registry_ready = true
+
+	var loaded = false
+	var catalog = null
+	if result == HTTPRequest.RESULT_SUCCESS and response_code == 200:
+		var json = JSON.parse(body.get_string_from_utf8())
+		if json.error == OK and typeof(json.result) == TYPE_DICTIONARY:
+			catalog = json.result
+			loaded = _load_ccb_catalog(catalog)
+
+	if loaded:
+		Helpers.save_to_json_file(catalog, _ccb_registry_cache_path())
+		Status.post(tr("msg_ccb_registry_loaded") % available.size(), Enums.MSG_SUCCESS)
+	elif _load_cached_ccb_catalog():
+		Status.post(tr("msg_ccb_registry_cached"), Enums.MSG_WARN)
+	else:
+		Status.post(tr("msg_ccb_registry_failed"), Enums.MSG_ERROR)
+
+	emit_signal("ccb_registry_loaded")
 
 
 func delete_mods(mod_ids: Array) -> void:
@@ -582,6 +748,21 @@ func _on_repository_download_completed(result: int, response_code: int, headers:
 	_process_downloaded_mod(body, mod_name)
 
 
+func _write_catapult_mod_marker(mod_path: String, mod_id: String, mod: Dictionary) -> void:
+	if mod.get("source_type") != "ccb_registry":
+		return
+	var marker = {
+		"schema_version": 1,
+		"id": mod_id,
+		"version": mod.get("version", ""),
+		"source_type": "ccb_registry",
+		"download": mod.get("location", ""),
+		"source": mod.get("homepage", ""),
+		"modinfo": mod["modinfo"],
+	}
+	Helpers.save_to_json_file(marker, mod_path.plus_file("catapult_mod.meta"))
+
+
 # Process downloaded mod data (common for both releases and repository downloads)
 func _process_downloaded_mod(body: PoolByteArray, mod_name: String) -> void:
 	
@@ -627,7 +808,7 @@ func _process_downloaded_mod(body: PoolByteArray, mod_name: String) -> void:
 		emit_signal("_done_installing_mod")
 		return
 	
-	file.store_var(body, true)
+	file.store_buffer(body)
 	file.close()
 	
 	# On macOS, ensure the downloaded file has proper permissions
@@ -664,16 +845,20 @@ func _process_downloaded_mod(body: PoolByteArray, mod_name: String) -> void:
 				# Find the actual mod directory with modinfo.json
 				var mod_dir = _find_mod_directory(extracted_dir)
 				if mod_dir != "":
-					FS.move_dir(mod_dir, mods_dir.plus_file(mod_id))
+					var installed_path = mods_dir.plus_file(mod_id)
+					FS.move_dir(mod_dir, installed_path)
 					yield(FS, "move_dir_done")
-					_fix_mod_permissions_macos(mods_dir.plus_file(mod_id))
+					_write_catapult_mod_marker(installed_path, mod_id, mod)
+					_fix_mod_permissions_macos(installed_path)
 					_store_mod_download_date(mod_id)
 					Status.post(tr("msg_mod_installed") % mod["modinfo"]["name"])
 				else:
 					# Fallback to installing the entire directory if no modinfo.json found
-					FS.move_dir(extracted_dir, mods_dir.plus_file(mod_id))
+					var fallback_path = mods_dir.plus_file(mod_id)
+					FS.move_dir(extracted_dir, fallback_path)
 					yield(FS, "move_dir_done")
-					_fix_mod_permissions_macos(mods_dir.plus_file(mod_id))
+					_write_catapult_mod_marker(fallback_path, mod_id, mod)
+					_fix_mod_permissions_macos(fallback_path)
 					_store_mod_download_date(mod_id)
 					Status.post(tr("msg_mod_installed") % mod["modinfo"]["name"])
 		else:
@@ -793,7 +978,7 @@ func _install_mod(mod_id: String) -> void:
 		var mod = available[mod_id]
 		
 		# Registry mods have a direct ZIP URL — skip the GitHub releases API step
-		if mod.get("source_type") == "bn_registry":
+		if mod.get("source_type") in ["bn_registry", "ccb_registry"]:
 			_download_and_install_mod(mod["location"], mod["modinfo"]["name"])
 			return
 		# Check if this is a GitHub URL
@@ -842,6 +1027,10 @@ func get_updatable_mod_ids() -> Array:
 		if available_key == "":
 			continue
 		var mod_location = available[available_key]["location"]
+		if available[available_key].get("source_type") == "ccb_registry":
+			if installed[mod_id].get("package_version", "") != available[available_key].get("version", ""):
+				result.append(available_key)
+			continue
 		if not mod_location.begins_with("https://github.com/"):
 			continue
 		if not mod_id in download_dates:
@@ -880,6 +1069,8 @@ func is_mod_compatible(mod_id: String) -> bool:
 	# Check if mod exists and has stability rating
 	if not mod_id in available:
 		return false
+	if available[mod_id].get("source_type") == "ccb_registry":
+		return available[mod_id].get("validation", {}).get("status", "not-tested") != "failed"
 	
 	var mod_info = available[mod_id]["modinfo"]
 	if not "stability" in mod_info:
@@ -922,7 +1113,7 @@ func _get_mod_latest_release_date(mod_id: String) -> String:
 	var location = mod["location"]
 
 	# Registry mods carry last_updated directly — no GitHub API needed
-	if mod.get("source_type") == "bn_registry":
+	if mod.get("source_type") in ["bn_registry", "ccb_registry"]:
 		var ts = mod.get("last_updated", "")
 		if ts != "":
 			_mod_release_date_cache[mod_id] = ts
@@ -972,7 +1163,7 @@ func fetch_all_mod_release_dates() -> void:
 		var location = mod["location"]
 		
 		# Only fetch for GitHub mods that aren't already cached; registry mods use stored last_updated
-		if location.begins_with("https://github.com/") and not mod_id in _mod_release_date_cache and mod.get("source_type") != "bn_registry":
+		if location.begins_with("https://github.com/") and not mod_id in _mod_release_date_cache and not mod.get("source_type") in ["bn_registry", "ccb_registry"]:
 			# Extract owner and repo from GitHub URL
 			var url_parts = location.replace("https://github.com/", "").split("/")
 			if len(url_parts) >= 2:
@@ -1014,7 +1205,7 @@ func _fetch_all_mod_release_dates_rest_api() -> void:
 		var location = mod["location"]
 		
 		# Only fetch for GitHub mods that aren't already cached; registry mods use stored last_updated
-		if location.begins_with("https://github.com/") and not mod_id in _mod_release_date_cache and mod.get("source_type") != "bn_registry":
+		if location.begins_with("https://github.com/") and not mod_id in _mod_release_date_cache and not mod.get("source_type") in ["bn_registry", "ccb_registry"]:
 			_pending_api_calls.append(mod_id)
 			mods_to_fetch += 1
 	
@@ -1302,6 +1493,9 @@ func _find_mod_directory(extracted_dir: String) -> String:
 	if file.file_exists(modinfo_path):
 		Status.post("Found modinfo.json in root directory")
 		return extracted_dir
+	if file.file_exists(extracted_dir.plus_file("main.lua")):
+		Status.post("Found CCB Lua Platform main.lua in root directory")
+		return extracted_dir
 	
 	# Search through subdirectories for modinfo.json
 	var mod_candidates = []
@@ -1464,4 +1658,3 @@ func _store_mod_download_date(mod_id: String) -> void:
 	Settings.store("mod_download_dates", download_dates)
 	
 	Status.post("Stored download date for mod %s: %s" % [actual_mod_id, date_string], Enums.MSG_DEBUG)
-
