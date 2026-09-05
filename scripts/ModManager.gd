@@ -475,6 +475,7 @@ func _load_ccb_catalog(catalog: Dictionary) -> bool:
 			"lua_api": entry.get("lua_api", null),
 			"ccb_adapters": entry.get("ccb_adapters", []),
 			"license": entry.get("license", ""),
+			"play_notes": _strip_html_tags(_localized_catalog_text(entry.get("play_notes", {}))),
 			"validation": entry.get("validation", {"status": "not-tested"}),
 			"last_updated": entry.get("updated_at", ""),
 			"modinfo": {
@@ -491,6 +492,16 @@ func _load_ccb_catalog(catalog: Dictionary) -> bool:
 
 	available = loaded
 	return true
+
+
+func matches_ccb_filter(mod: Dictionary, kind: int, query: String) -> bool:
+	if kind == 1 and mod.get("registry_type") != "ccb-maintained":
+		return false
+	if kind == 2 and mod.get("registry_type") != "community":
+		return false
+	var info = mod.get("modinfo", {})
+	var searchable = str(info.get("id", "")) + " " + str(info.get("name", "")) + " " + str(info.get("description", "")) + " " + str(info.get("authors", [])) + " " + str(info.get("maintainers", []))
+	return query.strip_edges().to_lower() in searchable.to_lower()
 
 
 func _load_cached_ccb_catalog() -> bool:

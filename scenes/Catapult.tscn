@@ -413,6 +413,30 @@ margin_right = -7.5
 margin_bottom = -7.5
 script = ExtResource( 18 )
 
+[node name="CCBCatalogControls" type="HBoxContainer" parent="Main/Tabs/Mods" groups=["disable_during_mod_operations"]]
+visible = false
+
+[node name="Type" type="OptionButton" parent="Main/Tabs/Mods/CCBCatalogControls" groups=["disable_during_mod_operations"]]
+
+[node name="Search" type="LineEdit" parent="Main/Tabs/Mods/CCBCatalogControls" groups=["disable_during_mod_operations"]]
+size_flags_horizontal = 3
+placeholder_text = "str_ccb_search"
+
+[node name="Refresh" type="Button" parent="Main/Tabs/Mods/CCBCatalogControls" groups=["disable_during_mod_operations"]]
+text = "str_ccb_refresh"
+
+[node name="Website" type="Button" parent="Main/Tabs/Mods/CCBCatalogControls"]
+text = "str_ccb_website"
+
+[node name="Submit" type="Button" parent="Main/Tabs/Mods/CCBCatalogControls"]
+text = "str_ccb_submit"
+
+[node name="CCBActivationHint" type="Label" parent="Main/Tabs/Mods"]
+visible = false
+text = "str_ccb_activation_hint"
+autowrap = true
+rect_min_size = Vector2( 0, 44 )
+
 [node name="HBox" type="HBoxContainer" parent="Main/Tabs/Mods"]
 margin_right = 577.0
 margin_bottom = 296.0

@@ -50,6 +50,17 @@ func _init() -> void:
 		fail("CCB catalog entry was not loaded")
 		return
 	var entry = manager.available["registry_smoke"]
+	if not manager.matches_ccb_filter(entry, 2, "adapter") and not manager.matches_ccb_filter(entry, 2, "author"):
+		fail("Community author search failed")
+		return
+	if manager.matches_ccb_filter(entry, 1, "") or manager.matches_ccb_filter(entry, 0, "not-present"):
+		fail("CCB category/search filtering failed")
+		return
+	var maintained = entry.duplicate(true)
+	maintained["registry_type"] = "ccb-maintained"
+	if not manager.matches_ccb_filter(maintained, 1, "REGISTRY_SMOKE") or manager.matches_ccb_filter(maintained, 2, ""):
+		fail("Maintained category filtering failed")
+		return
 	if entry.get("source_type") != "ccb_registry":
 		fail("CCB source type was not retained")
 		return

@@ -4,7 +4,7 @@ extends Node
 const _SETTINGS_FILENAME = "catapult_settings.json"
 
 const _HARDCODED_DEFAULTS = {
-	"version": "1.1.1-ccb",
+	"version": "1.2.0-ccb",
 	"game": "ccb",
 	"channel": "experimental",
 	"active_install_dda": "Cataclysm-DDA experimental build 2022-07-26-0606",
