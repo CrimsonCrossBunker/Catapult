@@ -499,9 +499,14 @@ func matches_ccb_filter(mod: Dictionary, kind: int, query: String) -> bool:
 		return false
 	if kind == 2 and mod.get("registry_type") != "community":
 		return false
+	var normalized_query = query.strip_edges().to_lower()
+	# In Godot 3 an empty string is not a matching substring.
+	# No search text means keep all entries in the selected category.
+	if normalized_query.empty():
+		return true
 	var info = mod.get("modinfo", {})
 	var searchable = str(info.get("id", "")) + " " + str(info.get("name", "")) + " " + str(info.get("description", "")) + " " + str(info.get("authors", [])) + " " + str(info.get("maintainers", []))
-	return query.strip_edges().to_lower() in searchable.to_lower()
+	return normalized_query in searchable.to_lower()
 
 
 func _load_cached_ccb_catalog() -> bool:

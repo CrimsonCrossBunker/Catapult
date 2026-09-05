@@ -58,6 +58,20 @@ func _init() -> void:
 		return
 	var maintained = entry.duplicate(true)
 	maintained["registry_type"] = "ccb-maintained"
+	# Godot 3 treats an empty substring as not found. Empty/whitespace
+	# searches must keep every entry in the selected category visible.
+	for query in ["", " ", "\t\n"]:
+		for kind in [0, 2]:
+			if not manager.matches_ccb_filter(entry, kind, query):
+				fail("Empty search hid a community MOD")
+				return
+		for kind in [0, 1]:
+			if not manager.matches_ccb_filter(maintained, kind, query):
+				fail("Empty search hid a maintained MOD")
+				return
+		if manager.matches_ccb_filter(entry, 1, query) or manager.matches_ccb_filter(maintained, 2, query):
+			fail("Empty search bypassed the selected category")
+			return
 	if not manager.matches_ccb_filter(maintained, 1, "REGISTRY_SMOKE") or manager.matches_ccb_filter(maintained, 2, ""):
 		fail("Maintained category filtering failed")
 		return

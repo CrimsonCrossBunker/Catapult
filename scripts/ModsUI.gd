@@ -306,7 +306,8 @@ func reload_available() -> void:
 				var current_text = _available_list.get_item_text(i)
 				_available_list.set_item_text(i, "[UP-TO-DATE] " + current_text)
 				
-	if _available_list.get_item_count() == 0:
+	# A disabled "no matches" row is not an installable MOD.
+	if _available_mods_view.empty():
 		_btn_add_all.disabled = true
 		_btn_add.disabled = true
 	else:
