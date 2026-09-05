@@ -14,6 +14,10 @@ onready var _lbl_installed = $HBox/Installed/Label
 onready var _lbl_repo = $HBox/Available/Label
 onready var _dlg_reinstall = $ModReinstallDialog
 onready var _dlg_del_multiple = $DeleteMultipleDialog
+onready var _ccb_controls = $CCBCatalogControls
+onready var _ccb_type = $CCBCatalogControls/Type
+onready var _ccb_search = $CCBCatalogControls/Search
+onready var _ccb_hint = $CCBActivationHint
 
 var _installed_mods_view := []
 var _available_mods_view := []
@@ -38,6 +42,31 @@ func _ready() -> void:
 	_mods.connect("mod_compatibility_checked", self, "_on_mod_compatibility_checked")
 	_mods.connect("bn_registry_loaded", self, "_on_bn_registry_loaded")
 	_mods.connect("ccb_registry_loaded", self, "_on_ccb_registry_loaded")
+	_ccb_type.add_item(tr("str_ccb_all_mods"))
+	_ccb_type.add_item(tr("str_type_ccb_maintained"))
+	_ccb_type.add_item(tr("str_type_community"))
+	_ccb_type.connect("item_selected", self, "_on_ccb_filter_changed")
+	_ccb_search.connect("text_changed", self, "_on_ccb_filter_changed")
+	$CCBCatalogControls/Refresh.connect("pressed", self, "_on_ccb_refresh")
+	$CCBCatalogControls/Website.connect("pressed", self, "_on_ccb_website")
+	$CCBCatalogControls/Submit.connect("pressed", self, "_on_ccb_submit")
+
+
+func _on_ccb_filter_changed(_value) -> void:
+	reload_available()
+	_lbl_mod_info.bbcode_text = tr("lbl_mod_info")
+
+
+func _on_ccb_refresh() -> void:
+	_mods._fetch_ccb_mods_from_registry()
+
+
+func _on_ccb_website() -> void:
+	OS.shell_open("https://crimsoncrossbunker.github.io/CCB-MOD/")
+
+
+func _on_ccb_submit() -> void:
+	OS.shell_open("https://crimsoncrossbunker.github.io/CCB-MOD/submit.html")
 
 
 func _on_bn_registry_loaded() -> void:
@@ -158,6 +187,8 @@ func reload_available() -> void:
 	
 	# Check if mods are not supported for the current game fork
 	var game = Settings.read("game")
+	_ccb_controls.visible = game == "ccb"
+	_ccb_hint.visible = game == "ccb"
 	if game == "tish":
 		_available_mods_view.clear()
 		_available_list.clear()
@@ -191,7 +222,7 @@ func reload_available() -> void:
 	elif game == "ccb" and len(_mods.available) == 0:
 		_available_mods_view.clear()
 		_available_list.clear()
-		_available_list.add_item(tr("msg_ccb_registry_fetching"))
+		_available_list.add_item(tr("str_ccb_catalog_empty") if _mods._ccb_registry_ready else tr("msg_ccb_registry_fetching"))
 		_available_list.set_item_disabled(0, true)
 		_available_list.set_item_custom_fg_color(0, Color(0.7, 0.7, 0.7))
 		_lbl_repo.text = tr("lbl_mod_repo") % ""
@@ -206,6 +237,8 @@ func reload_available() -> void:
 	
 	for id in _mods.available:
 		var mod = _mods.available[id]
+		if game == "ccb" and not _mods.matches_ccb_filter(mod, _ccb_type.selected, _ccb_search.text):
+			continue
 		var show: bool
 		
 		if _mods.mod_status(id) in [0, 3]:
@@ -216,7 +249,7 @@ func reload_available() -> void:
 		if show:
 			_available_mods_view.append({
 				"id": id,
-				"name": mod["modinfo"]["name"],
+				"name": ("[%s] " % [tr("str_type_ccb_maintained") if mod.get("registry_type") == "ccb-maintained" else tr("str_type_community")] if game == "ccb" else "") + mod["modinfo"]["name"],
 				"location": mod["location"]
 			})
 		else:
@@ -231,6 +264,10 @@ func reload_available() -> void:
 	_btn_add.disabled = true
 	
 	_populate_list_with_mods(_available_mods_view, _available_list)
+	_btn_add_all.disabled = _available_mods_view.empty()
+	if game == "ccb" and _available_mods_view.empty():
+		_available_list.add_item(tr("str_ccb_no_matches"))
+		_available_list.set_item_disabled(0, true)
 	
 	for i in len(_available_mods_view):
 		var id = _available_mods_view[i]["id"]
@@ -332,6 +369,8 @@ func _make_mod_info_string(mod: Dictionary) -> String:
 		result += "[b][u]%s[/u][/b] %s\n" % [tr("str_mod_conflicts"), _array_to_text_list(modinfo["conflicts"])]
 
 	if mod.get("source_type") == "ccb_registry":
+		if mod.get("play_notes", "") != "":
+			result += "[b]%s[/b] %s\n" % [tr("str_ccb_play_notes"), str(mod["play_notes"]).replace("[", "[lb]")]
 		result += "[b][u]%s[/u][/b] %s\n" % [tr("str_mod_type"), tr("str_type_ccb_maintained") if mod.get("registry_type") == "ccb-maintained" else tr("str_type_community")]
 		result += "[b][u]%s[/u][/b] %s\n" % [tr("str_mod_version"), mod.get("version", "")]
 		result += "[b][u]%s[/u][/b] %s\n" % [tr("str_ccb_versions"), _array_to_text_list(mod.get("ccb_versions", []))]
@@ -707,6 +746,8 @@ func _do_mod_installation() -> void:
 	
 	reload_installed()
 	reload_available()
+	if Settings.read("game") == "ccb":
+		Status.post(tr("str_ccb_activation_hint"), Enums.MSG_INFO)
 
 
 func _on_ModReinstallDialog_response_yes() -> void:

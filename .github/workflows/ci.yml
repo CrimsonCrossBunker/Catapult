@@ -138,6 +138,9 @@ jobs:
           timeout --signal=TERM --kill-after=10s 1m \
             "$GODOT_BIN" --path "$GITHUB_WORKSPACE" \
             --script tests/ccb_registry_smoke.gd
+          timeout --signal=TERM --kill-after=10s 1m \
+            "$GODOT_BIN" --path "$GITHUB_WORKSPACE" \
+            --script tests/ccb_catalog_ui.gd
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
