@@ -1,4 +1,19 @@
 plugins { id 'com.android.application' }
+
+// Same encrypted keystore/properties contract as the CCB game repository.
+// The workflow decrypts into an ephemeral directory outside the checkout.
+def signingDirectory = System.getenv('CCB_ANDROID_SIGNING_DIR')
+def sharedSigning = new Properties()
+if (signingDirectory) {
+    new File(signingDirectory, 'keystore.properties').withReader('UTF-8') { reader ->
+        sharedSigning.load(reader)
+    }
+    ['storePassword', 'keyAlias', 'keyPassword'].each { name ->
+        if (!sharedSigning.getProperty(name)) {
+            throw new GradleException("Shared signing configuration is missing ${name}")
+        }
+    }
+}
 android {
     namespace 'org.crimsoncrossbunker.launcher'
     compileSdk 35
@@ -13,11 +28,12 @@ android {
     compileOptions { sourceCompatibility JavaVersion.VERSION_11; targetCompatibility JavaVersion.VERSION_11 }
     signingConfigs {
         release {
-            if (System.getenv('CCB_ANDROID_KEYSTORE')) {
-                storeFile file(System.getenv('CCB_ANDROID_KEYSTORE'))
-                storePassword System.getenv('CCB_ANDROID_STORE_PASSWORD')
-                keyAlias System.getenv('CCB_ANDROID_KEY_ALIAS')
-                keyPassword System.getenv('CCB_ANDROID_KEY_PASSWORD')
+            if (signingDirectory) {
+                // Ignore the game repository's relative storeFile path.
+                storeFile new File(signingDirectory, 'release.keystore')
+                storePassword sharedSigning.getProperty('storePassword')
+                keyAlias sharedSigning.getProperty('keyAlias')
+                keyPassword sharedSigning.getProperty('keyPassword')
             }
         }
     }

@@ -44,18 +44,56 @@ MOD identities, update preservation, backups, unmanaged directories and catalog
 validation. Instrumentation tests exercise the current public catalog/package
 on Android storage and the bilingual UI. They are not game-play tests.
 
-The debug APK is **not a production release**. Release builds require persistent
-signing credentials provided through `CCB_ANDROID_KEYSTORE`,
-`CCB_ANDROID_STORE_PASSWORD`, `CCB_ANDROID_KEY_ALIAS`, `CCB_ANDROID_KEY_PASSWORD`.
-Do not commit keystores or passwords. Keep the signing key backed up: changing
-it prevents in-place upgrades. `./gradlew assembleRelease` builds the release.
+The debug APK is **not a production release**. Release signing uses the same
+three GPG-encrypted Actions Secrets as the CCB game repository:
 
-Tag publication now requires both desktop exports and the signed Android build;
-missing signing secrets fail the release rather than silently publishing only
-desktop files. Configure the four repository Actions secrets
-`CCB_ANDROID_KEYSTORE_BASE64`, `CCB_ANDROID_STORE_PASSWORD`,
-`CCB_ANDROID_KEY_ALIAS`, `CCB_ANDROID_KEY_PASSWORD` before tagging. The first is
-the base64-encoded dedicated launcher keystore, never the game's signing key.
+| Secret | Value |
+| --- | --- |
+| `KEYSTORE` | ASCII-armored, GPG-encrypted original signing keystore |
+| `KEYSTORE_PROPERTIES` | ASCII-armored, GPG-encrypted UTF-8 Java properties |
+| `KEYSTORE_PASSWORD` | GPG decryption passphrase, not necessarily the keystore password |
+
+Decrypted properties must contain `storePassword`, `keyAlias`, `keyPassword`.
+The game's `storeFile` property is ignored: the launcher always uses the
+decrypted `release.keystore` in its temporary signing directory. No password or
+key is printed, committed or uploaded as an artifact. The workflow cleans the
+directory on both success and failure. Gradle runs without a persistent daemon.
+
+### Organization setup / 组织统一配置
+
+1. In CrimsonCrossBunker's **Settings → Secrets and variables → Actions**, create
+   the three organization Secrets above from the original backups. GitHub cannot
+   reveal/copy the existing repository Secret values. Do not export them through
+   Actions logs/artifacts or paste them into chat.
+2. Set **Repository access → All repositories** if the intention is to grant all
+   current/future organization repositories access. On the organization's current
+   GitHub Free plan, organization Secrets cannot be used by private repositories;
+   those require an eligible plan or separately configured repository Secrets.
+3. Existing repository/environment Secrets with the same name override the
+   organization value. Leave the game's working configuration intact until the
+   shared configuration has been verified; then deliberately reconcile overrides
+   so future rotation does not leave repositories on different keys.
+4. Only workflows referencing these names actually use the signing material.
+   Sharing Secrets does not automatically add signing to other repositories.
+   The game already uses this contract; the launcher now does too.
+
+组织共享步骤：使用原始备份创建上述三个组织 Secret，仓库访问范围选择全部仓库。
+当前套餐仅支持公开仓库使用组织 Secret。原有同名仓库/环境 Secret 会优先于组织值，
+不要在验证成功前删除主仓库的工作配置。已有值无法从 GitHub 读回。
+
+Sharing the game key is an explicit organization policy: every authorized
+repository's trusted workflow maintainers can potentially use that identity.
+Protect write access, workflow changes and release tags. Never expose signing
+Secrets to untrusted PR code. Keep offline backups of the original key and its
+configuration; replacing the key breaks in-place Android upgrades. Sharing a key
+does not merge the apps: their application IDs remain different.
+
+Tag publication requires desktop exports, cross-platform acceptance and a signed
+Android APK. Missing Secrets fail the release instead of publishing partial files.
+For local signing, use an ephemeral directory in `CCB_ANDROID_SIGNING_DIR`, run
+`.github/scripts/prepare_android_signing.sh` with the three inputs in a protected
+environment, then `./gradlew --no-daemon assembleRelease`. Remove the temporary
+signing files afterwards. Do not put secret values in shell history.
 Keep tag/versionCode/versionName changes synchronized for subsequent upgrades.
 
 This is a GitHub-distributed application. Its file-management permission is
