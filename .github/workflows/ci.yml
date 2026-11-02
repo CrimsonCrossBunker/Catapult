@@ -150,9 +150,55 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  release-acceptance:
+    if: startsWith(github.ref, 'refs/tags/')
+    uses: ./.github/workflows/registry-acceptance.yml
+
+  android-release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;34.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build signed Android release (fail closed without the persistent key)
+        working-directory: android
+        env:
+          CCB_ANDROID_KEYSTORE_BASE64: ${{ secrets.CCB_ANDROID_KEYSTORE_BASE64 }}
+          CCB_ANDROID_STORE_PASSWORD: ${{ secrets.CCB_ANDROID_STORE_PASSWORD }}
+          CCB_ANDROID_KEY_ALIAS: ${{ secrets.CCB_ANDROID_KEY_ALIAS }}
+          CCB_ANDROID_KEY_PASSWORD: ${{ secrets.CCB_ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$CCB_ANDROID_KEYSTORE_BASE64"
+          test -n "$CCB_ANDROID_STORE_PASSWORD"
+          test -n "$CCB_ANDROID_KEY_ALIAS"
+          test -n "$CCB_ANDROID_KEY_PASSWORD"
+          export CCB_ANDROID_KEYSTORE="$RUNNER_TEMP/ccb-launcher-release.jks"
+          trap 'rm -f "$CCB_ANDROID_KEYSTORE"' EXIT
+          printf '%s' "$CCB_ANDROID_KEYSTORE_BASE64" | base64 --decode > "$CCB_ANDROID_KEYSTORE"
+          chmod 600 "$CCB_ANDROID_KEYSTORE"
+          ./gradlew testReleaseUnitTest lintRelease assembleRelease
+          "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose app/build/outputs/apk/release/app-release.apk
+          mkdir -p ../android-dist
+          cp app/build/outputs/apk/release/app-release.apk ../android-dist/CCB-Launcher-android.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CCB-Android-${{ github.sha }}
+          path: android-dist/
+          if-no-files-found: error
+
   release:
     if: startsWith(github.ref, 'refs/tags/')
-    needs: export
+    needs: [export, android-release, release-acceptance]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -163,6 +209,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: Dabdoob-CCB-${{ github.sha }}
+          path: dist
+
+      - name: Download signed Android artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: CCB-Android-${{ github.sha }}
           path: dist
 
       - name: Publish GitHub release

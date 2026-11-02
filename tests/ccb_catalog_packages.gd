@@ -13,10 +13,11 @@ func fail(message: String) -> void:
 func run() -> void:
 	var paths = get_root().get_node("Paths")
 	var settings = get_root().get_node("Settings")
-	get_root().get_node("FS")._platform = "X11"
+	get_root().get_node("FS")._platform = "Windows" if OS.get_name() == "Windows" else "X11"
 	var game_path = OS.get_environment("CCB_TEST_GAME")
-	if not paths.own_dir.begins_with("/tmp/ccb-godot3") or not game_path.begins_with("/tmp/ccb-"):
-		fail("Use an isolated /tmp/ccb-godot3 executable and /tmp/ccb- game directory")
+	var sandbox = OS.get_environment("CCB_TEST_SANDBOX").replace("\\", "/")
+	if sandbox.empty() or paths.own_dir.replace("\\", "/") != sandbox or not game_path.replace("\\", "/").begins_with(sandbox + "/"):
+		fail("Run this test using tests/run_registry_tests.py in an isolated sandbox")
 		return
 	settings.store("game", "ccb")
 	settings.store("active_install_ccb", "catalog-acceptance")

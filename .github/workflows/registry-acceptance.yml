@@ -1,0 +1,86 @@
+name: Cross-platform MOD acceptance
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+  workflow_call:
+permissions:
+  contents: read
+concurrency:
+  group: ccb-registry-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Provide software OpenGL on headless Windows runners
+        if: runner.os == 'Windows'
+        uses: ssciwr/setup-mesa-dist-win@v3
+        with:
+          version: '26.0.3'
+      - name: Download pinned Godot 3 runtime
+        shell: python
+        run: |
+          import os, pathlib, urllib.request, zipfile
+          target = pathlib.Path(os.environ['RUNNER_TEMP']) / 'godot3'
+          target.mkdir()
+          suffix = 'win64.exe' if os.name == 'nt' else 'linux_headless.64'
+          name = 'Godot_v3.6.1-stable_' + suffix
+          url = 'https://github.com/godotengine/godot/releases/download/3.6.1-stable/' + name + '.zip'
+          archive = target / 'engine.zip'
+          urllib.request.urlretrieve(url, archive)
+          with zipfile.ZipFile(archive) as z: z.extractall(target)
+          binary = target / name
+          binary.chmod(0o755)
+          with open(os.environ['GITHUB_ENV'], 'a') as f: f.write('GODOT_TEST_BIN=' + str(binary) + '\n')
+      - name: Catalog, UI, real installation, update, failure preservation and uninstall
+        shell: bash
+        run: python tests/run_registry_tests.py --godot "$GODOT_TEST_BIN" --live
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;34.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: JVM security/lifecycle tests, lint and APK build
+        working-directory: android
+        run: ./gradlew testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest
+      - name: Enable KVM for emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Android runtime and bilingual UI acceptance
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: cd android && ./gradlew connectedDebugAndroidTest
+      - name: Upload Android build and test reports (not a production release)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-acceptance
+          path: |
+            android/app/build/outputs/apk/
+            android/app/build/reports/
+            android/app/build/outputs/androidTest-results/
