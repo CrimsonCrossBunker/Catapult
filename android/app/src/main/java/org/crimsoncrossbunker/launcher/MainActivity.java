@@ -186,13 +186,32 @@ public final class MainActivity extends Activity {
         String[] keys = {"id", "type", "version", "authors", "maintainers", "ccb_adapters", "updated_at", "ccb_versions", "lua_api", "dependencies", "conflicts", "license", "validation"};
         String[] cn = {"ID", "维护类型", "版本", "作者", "维护人", "适配人", "更新时间", "适配游戏版本", "Lua API", "依赖", "冲突", "许可证", "实测状态"};
         StringBuilder body = new StringBuilder(local(mod, "description")).append("\n\n");
-        for (int i = 0; i < keys.length; i++) body.append(zh ? cn[i] : keys[i]).append(": ").append(mod.opt(keys[i])).append('\n');
+        for (int i = 0; i < keys.length; i++) body.append(zh ? cn[i] : keys[i]).append(": ").append(detailValue(mod, keys[i])).append('\n');
         body.append('\n').append(local(mod, "play_notes"));
         body.append("\n\n").append(t("Lua MOD 会在游戏进程内运行，只安装你信任的作者。兼容性由作者声明，不等于实测通过。更新/卸载前请关闭游戏并备份存档。", "Lua MODs execute in the game process. Only install authors you trust. Declared compatibility is not proof of testing. Close the game and back up saves before updates/removal."));
         new AlertDialog.Builder(this).setTitle(local(mod, "name")).setMessage(body.toString())
             .setPositiveButton(t("安装 / 更新", "Install / update"), (d, w) -> confirmInstall(mod))
             .setNeutralButton(t("卸载", "Uninstall"), (d, w) -> uninstall(mod))
             .setNegativeButton(t("关闭", "Close"), null).show();
+    }
+
+    private String detailValue(JSONObject mod, String key) {
+        Object value = mod.opt(key);
+        if (value == null || value == JSONObject.NULL) return t("未声明", "Not declared");
+        if (key.equals("type")) return mod.optString(key).equals("community") ? t("民间作者维护", "Community maintained") : t("CCB 收录维护", "CCB maintained");
+        if (key.equals("validation")) {
+            JSONObject validation = mod.optJSONObject(key);
+            String state = validation == null ? "not-tested" : validation.optString("status", "not-tested");
+            String label = state.equals("passed") ? t("声明已通过", "Reported passed") : state.equals("failed") ? t("测试失败", "Failed") : t("未实测", "Not tested");
+            return label + (validation == null ? "" : " / " + validation.optString("ccb_version", "—") + " / " + validation.optString("checked_at", "—"));
+        }
+        if (value instanceof JSONArray) {
+            JSONArray array = (JSONArray) value;
+            List<String> parts = new ArrayList<>();
+            for (int i = 0; i < array.length(); i++) parts.add(array.optString(i));
+            return parts.isEmpty() ? t("无", "None") : android.text.TextUtils.join(", ", parts);
+        }
+        return value.toString();
     }
 
     private void confirmInstall(JSONObject mod) {
@@ -311,7 +330,12 @@ public final class MainActivity extends Activity {
         List<String> names = new ArrayList<>(); List<Intent> intents = new ArrayList<>();
         for (String name : GAMES) {
             Intent intent = getPackageManager().getLaunchIntentForPackage(name);
-            if (intent != null) { names.add(name); intents.add(intent); }
+            if (intent != null) {
+                String label = name.endsWith(".experimental") ? t("实验版", "Experimental") : name.endsWith(".newui") ? t("新界面版", "New UI") : t("标准版", "Standard");
+                try { label += " · " + getPackageManager().getPackageInfo(name, 0).versionName; }
+                catch (PackageManager.NameNotFoundException ignored) { }
+                names.add(label); intents.add(intent);
+            }
         }
         if (intents.isEmpty()) message(t("未安装游戏", "Game not installed"), t("请先下载并安装 CCB APK。", "Download and install a CCB APK first."));
         else if (intents.size() == 1) startActivity(intents.get(0));
