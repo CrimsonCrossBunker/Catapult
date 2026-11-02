@@ -70,7 +70,10 @@ def main():
                     print(output, flush=True)
             if result.returncode or 'SCRIPT ERROR:' in output:
                 raise RuntimeError(f'Godot failed: {arguments} (exit {result.returncode})')
-        run('--editor', '--quit')
+        # Exporting a resource pack imports all resources and exits explicitly.
+        # Godot 3's interactive editor can remain open on first import even with
+        # --quit. A PCK export needs no native export templates.
+        run('--export-pack', 'Linux/X11', str(sandbox / 'acceptance.pck'))
         for script in ('ccb_registry_smoke', 'ccb_catalog_ui', 'ccb_registry_install', 'ccb_catalog_packages'):
             run('--script', f'tests/{script}.gd')
         if args.live:
