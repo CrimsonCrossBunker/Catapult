@@ -9,7 +9,7 @@
         <package android:name="com.crimsoncrossbunker.cataclysmcb.experimental" />
         <package android:name="com.crimsoncrossbunker.cataclysmcb.newui" />
     </queries>
-    <application android:label="CCB Launcher" android:theme="@android:style/Theme.Material.Light.NoActionBar"
+    <application android:label="CCB Launcher" android:icon="@drawable/launcher_icon" android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:usesCleartextTraffic="false" android:allowBackup="false" android:requestLegacyExternalStorage="true">
         <activity android:name=".MainActivity" android:exported="true"
             android:configChanges="orientation|screenSize|keyboardHidden">

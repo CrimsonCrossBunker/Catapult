@@ -40,6 +40,13 @@ public final class ModStore {
     }
 
     public static byte[] fetch(String address, long limit) throws IOException {
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            download(address, out, limit);
+            return out.toByteArray();
+        }
+    }
+
+    public static void download(String address, OutputStream out, long limit) throws IOException {
         URL url = https(address);
         for (int redirect = 0; redirect < 6; redirect++) {
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
@@ -57,15 +64,17 @@ public final class ModStore {
                 }
                 if (status != 200) throw new IOException("HTTP " + status);
                 if (connection.getContentLengthLong() > limit) throw new IOException("Download is too large");
-                try (InputStream in = connection.getInputStream(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                try (InputStream in = connection.getInputStream()) {
                     byte[] buffer = new byte[16384];
                     int count;
+                    long total = 0;
                     while ((count = in.read(buffer)) != -1) {
                         if (Thread.currentThread().isInterrupted()) throw new InterruptedIOException();
-                        if ((long) out.size() + count > limit) throw new IOException("Download is too large");
+                        total += count;
+                        if (total > limit) throw new IOException("Download is too large");
                         out.write(buffer, 0, count);
                     }
-                    return out.toByteArray();
+                    return;
                 }
             } finally { connection.disconnect(); }
         }
@@ -110,9 +119,18 @@ public final class ModStore {
         return new JSONObject(new String(Files.readAllBytes(marker), StandardCharsets.UTF_8));
     }
 
-    public synchronized void install(JSONObject mod, byte[] zip) throws Exception {
-        String modId = id(mod.getString("id"));
+    public void install(JSONObject mod, byte[] zip) throws Exception {
         if (zip.length > MAX_PACKAGE) throw new IOException("Package is too large");
+        try (InputStream stream = new ByteArrayInputStream(zip)) { installStream(mod, stream); }
+    }
+
+    public void install(JSONObject mod, Path zip) throws Exception {
+        if (Files.size(zip) > MAX_PACKAGE) throw new IOException("Package is too large");
+        try (InputStream stream = Files.newInputStream(zip)) { installStream(mod, stream); }
+    }
+
+    private synchronized void installStream(JSONObject mod, InputStream zip) throws Exception {
+        String modId = id(mod.getString("id"));
         Path target = child("mods").resolve(modId);
         if (Files.isSymbolicLink(target)) throw new IOException("Unsafe MOD directory");
         // Do not overwrite manually installed content without a launcher ownership marker.
@@ -151,11 +169,11 @@ public final class ModStore {
         return backup;
     }
 
-    static void unpack(byte[] bytes, Path stage) throws IOException {
+    static void unpack(InputStream stream, Path stage) throws IOException {
         long expanded = 0;
         int entries = 0;
         Set<String> names = new HashSet<>();
-        try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(bytes))) {
+        try (ZipInputStream zip = new ZipInputStream(stream)) {
             ZipEntry entry;
             byte[] buffer = new byte[16384];
             while ((entry = zip.getNextEntry()) != null) {

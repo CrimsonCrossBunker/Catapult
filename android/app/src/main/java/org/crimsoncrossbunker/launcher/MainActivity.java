@@ -195,8 +195,13 @@ public final class MainActivity extends Activity {
         new AlertDialog.Builder(this).setTitle(t("确认兼容性与数据目录", "Confirm compatibility and storage"))
             .setMessage(t("请确认：游戏已关闭，已使用公共数据目录，所装游戏版本在下列兼容列表中，已检查依赖和冲突。未实测 MOD 请使用测试存档。\n", "Confirm the game is closed, public storage is enabled, the installed game is in this compatibility list, and dependencies/conflicts have been checked. Use a test save for untested MODs.\n") + mod.optJSONArray("ccb_versions") + "\n" + gameRoot())
             .setPositiveButton(t("确认安装", "Confirm install"), (d, w) -> task(t("下载并安装中，请勿退出…", "Downloading/installing; keep app open…"), () -> {
-                byte[] zip = ModStore.fetch(mod.getString("download"), ModStore.MAX_PACKAGE);
-                store().install(mod, zip);
+                Path zip = Files.createTempFile(getCacheDir().toPath(), "mod-", ".zip");
+                try {
+                    try (java.io.OutputStream out = Files.newOutputStream(zip)) {
+                        ModStore.download(mod.getString("download"), out, ModStore.MAX_PACKAGE);
+                    }
+                    store().install(mod, zip);
+                } finally { Files.deleteIfExists(zip); }
                 return t("安装完成。在游戏创建世界时启用 MOD。", "Installed. Enable the MOD when creating a world.");
             })).setNegativeButton(t("取消", "Cancel"), null).show();
     }
