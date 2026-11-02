@@ -60,6 +60,23 @@ func run() -> void:
 	if not file.file_exists(destination.plus_file("main.lua")):
 		fail("Broken update removed the working MOD")
 		return
+	# A synchronous extraction setup error must complete, not leave the UI
+	# waiting for a signal that fired before it subscribed.
+	var directory = Directory.new()
+	var tmp_backup = paths.tmp_dir + "-acceptance-backup"
+	if directory.rename(paths.tmp_dir, tmp_backup) != OK:
+		fail("Cannot prepare extraction failure fixture")
+		return
+	file.open(paths.tmp_dir, File.WRITE)
+	file.store_string("block directory creation")
+	file.close()
+	manager._process_downloaded_mod(body, name)
+	yield(manager, "_done_installing_mod")
+	directory.remove(paths.tmp_dir)
+	directory.rename(tmp_backup, paths.tmp_dir)
+	if not file.file_exists(destination.plus_file("main.lua")):
+		fail("Extraction setup failure removed the working MOD")
+		return
 	# Different authors may choose the same display name. Identity is the ID.
 	var duplicate = mod.duplicate(true)
 	duplicate["modinfo"]["id"] = "same_name_other_id"

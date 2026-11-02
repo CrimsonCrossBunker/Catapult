@@ -839,7 +839,9 @@ func _process_downloaded_mod(body: PoolByteArray, mod_name: String, requested_id
 			Status.post("Warning: Could not set archive file permissions", Enums.MSG_WARNING)
 	
 	# Extract the mod
-	FS.extract(archive, tmp_dir)
+	# Extraction can reject a missing tool/unwritable directory synchronously.
+	# Start on the next frame so this signal cannot fire before the yield.
+	FS.call_deferred("extract", archive, tmp_dir)
 	yield(FS, "extract_done")
 	if not Settings.read("keep_cache"):
 		Directory.new().remove(archive)

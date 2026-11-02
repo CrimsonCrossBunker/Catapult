@@ -23,6 +23,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Provide software OpenGL on headless Windows runners
+        if: runner.os == 'Windows'
+        uses: ssciwr/setup-mesa-dist-win@v3
+        with:
+          version: '26.0.3'
       - name: Download pinned Godot 3 runtime
         shell: python
         run: |

@@ -61,7 +61,7 @@ def main():
             # Use a log file so completion follows Godot, not its daemon's pipe.
             with tempfile.TemporaryFile(mode='w+', encoding='utf-8', errors='replace') as log:
                 try:
-                    video = ['--video-driver', 'GLES2'] if os.name == 'nt' else []
+                    video = ['--video-driver', 'GLES2', '--no-window', '--audio-driver', 'Dummy'] if os.name == 'nt' else []
                     result = subprocess.run([str(binary), *video, '--path', str(ROOT), *arguments],
                                             env=env, stdout=log, stderr=log, timeout=180)
                 finally:
