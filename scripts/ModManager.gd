@@ -785,14 +785,14 @@ func _write_catapult_mod_marker(mod_path: String, mod_id: String, mod: Dictionar
 
 
 # Process downloaded mod data (common for both releases and repository downloads)
-func _process_downloaded_mod(body: PoolByteArray, mod_name: String) -> void:
+func _process_downloaded_mod(body: PoolByteArray, mod_name: String, requested_id: String = "") -> void:
 	
 	var mod_id = ""
 	var mod = {}
 	
 	# Find the mod info from available mods
 	for id in available:
-		if available[id]["modinfo"]["name"] == mod_name:
+		if (not requested_id.empty() and id == requested_id) or (requested_id.empty() and available[id]["modinfo"]["name"] == mod_name):
 			mod_id = id
 			mod = available[id]
 			break
@@ -933,12 +933,12 @@ func _fix_mod_permissions_macos(mod_path: String) -> void:
 		Status.post("Warning: Could not set mod file permissions for %s" % mod_path, Enums.MSG_WARNING)
 
 
-func _download_and_install_mod(download_url: String, mod_name: String) -> void:
+func _download_and_install_mod(download_url: String, mod_name: String, requested_id: String = "") -> void:
 	
 	# Check if we have a cached version first
 	var mod_id = ""
 	for id in available:
-		if available[id]["modinfo"]["name"] == mod_name:
+		if (not requested_id.empty() and id == requested_id) or (requested_id.empty() and available[id]["modinfo"]["name"] == mod_name):
 			mod_id = id
 			break
 	
@@ -957,7 +957,7 @@ func _download_and_install_mod(download_url: String, mod_name: String) -> void:
 		if file.open(archive, File.READ) == OK:
 			var body = file.get_buffer(file.get_len())
 			file.close()
-			_process_downloaded_mod(body, mod_name)
+			_process_downloaded_mod(body, mod_name, mod_id)
 			return
 	
 	# Download using HTTP request
@@ -972,13 +972,13 @@ func _download_and_install_mod(download_url: String, mod_name: String) -> void:
 		http_request.set_https_proxy(host, port)
 	
 	# Connect signal
-	http_request.connect("request_completed", self, "_on_mod_download_completed", [http_request, mod_name])
+	http_request.timeout = 120
+	http_request.body_size_limit = 128 * 1024 * 1024
+	http_request.connect("request_completed", self, "_on_mod_download_completed", [http_request, mod_name, mod_id])
 	
-	# Get authentication headers from the parent Catapult instance if available
+	# Public MOD packages can be hosted by third parties. Never send the
+	# user's GitHub token to package hosts (or through their redirects).
 	var headers = PoolStringArray()
-	var catapult = get_parent()
-	if catapult and catapult.has_method("_get_github_auth_headers"):
-		headers = catapult._get_github_auth_headers()
 	
 	# Make the request
 	Status.post("Downloading %s from %s..." % [mod_name, download_url], Enums.MSG_INFO)
@@ -992,7 +992,7 @@ func _download_and_install_mod(download_url: String, mod_name: String) -> void:
 
 
 # Handle mod download completion
-func _on_mod_download_completed(result: int, response_code: int, headers: PoolStringArray, body: PoolByteArray, http_request: HTTPRequest, mod_name: String) -> void:
+func _on_mod_download_completed(result: int, response_code: int, headers: PoolStringArray, body: PoolByteArray, http_request: HTTPRequest, mod_name: String, mod_id: String = "") -> void:
 	
 	# Clean up HTTP request
 	remove_child(http_request)
@@ -1004,7 +1004,7 @@ func _on_mod_download_completed(result: int, response_code: int, headers: PoolSt
 		return
 	
 	# Success! Process the downloaded mod
-	_process_downloaded_mod(body, mod_name)
+	_process_downloaded_mod(body, mod_name, mod_id)
 
 
 func _install_mod(mod_id: String) -> void:
@@ -1019,7 +1019,7 @@ func _install_mod(mod_id: String) -> void:
 		
 		# Registry mods have a direct ZIP URL — skip the GitHub releases API step
 		if mod.get("source_type") in ["bn_registry", "ccb_registry"]:
-			_download_and_install_mod(mod["location"], mod["modinfo"]["name"])
+			_download_and_install_mod(mod["location"], mod["modinfo"]["name"], mod_id)
 			return
 		# Check if this is a GitHub URL
 		elif mod["location"].begins_with("https://github.com/"):

@@ -16,9 +16,10 @@ func run() -> void:
 	var paths = get_root().get_node("Paths")
 	var settings = get_root().get_node("Settings")
 	var fs = get_root().get_node("FS")
-	fs._platform = "X11" # Headless Godot reports Server; exercise Linux extraction.
-	if not paths.own_dir.begins_with("/tmp/ccb-godot3"):
-		fail("Run this test from the isolated /tmp/ccb-godot3 executable")
+	fs._platform = "Windows" if OS.get_name() == "Windows" else "X11"
+	var sandbox = OS.get_environment("CCB_TEST_SANDBOX").replace("\\", "/")
+	if sandbox.empty() or paths.own_dir.replace("\\", "/") != sandbox:
+		fail("Run this test using tests/run_registry_tests.py in an isolated sandbox")
 		return
 	settings.store("game", "ccb")
 	settings.store("active_install_ccb", "registry-acceptance")
@@ -58,6 +59,16 @@ func run() -> void:
 	yield(manager, "_done_installing_mod")
 	if not file.file_exists(destination.plus_file("main.lua")):
 		fail("Broken update removed the working MOD")
+		return
+	# Different authors may choose the same display name. Identity is the ID.
+	var duplicate = mod.duplicate(true)
+	duplicate["modinfo"]["id"] = "same_name_other_id"
+	manager.available["same_name_other_id"] = duplicate
+	manager._process_downloaded_mod(body, name, "same_name_other_id")
+	yield(manager, "_done_installing_mod")
+	manager.refresh_installed()
+	if not "same_name_other_id" in manager.installed:
+		fail("Duplicate display name installed the wrong MOD ID")
 		return
 	manager.delete_mods(["hello_ccb"])
 	yield(manager, "mod_deletion_finished")
