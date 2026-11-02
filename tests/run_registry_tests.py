@@ -56,10 +56,18 @@ def main():
                    CCB_TEST_ZIP=(packages / 'hello_ccb-1.zip').as_posix())
         # Autoloads write settings next to the copied engine, not the real launcher.
         def run(*arguments):
-            result = subprocess.run([str(binary), '--path', str(ROOT), *arguments],
-                                    env=env, capture_output=True, text=True, timeout=180)
-            output = result.stdout + result.stderr
-            print(output)
+            # The editor can start adb, whose daemon inherits stdout. A PIPE
+            # then never reaches EOF even after Godot exits on a fresh runner.
+            # Use a log file so completion follows Godot, not its daemon's pipe.
+            with tempfile.TemporaryFile(mode='w+', encoding='utf-8', errors='replace') as log:
+                try:
+                    video = ['--video-driver', 'GLES2'] if os.name == 'nt' else []
+                    result = subprocess.run([str(binary), *video, '--path', str(ROOT), *arguments],
+                                            env=env, stdout=log, stderr=log, timeout=180)
+                finally:
+                    log.seek(0)
+                    output = log.read()
+                    print(output, flush=True)
             if result.returncode or 'SCRIPT ERROR:' in output:
                 raise RuntimeError(f'Godot failed: {arguments} (exit {result.returncode})')
         run('--editor', '--quit')
