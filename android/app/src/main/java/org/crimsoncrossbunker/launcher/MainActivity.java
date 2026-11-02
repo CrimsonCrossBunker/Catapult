@@ -19,6 +19,7 @@ import java.util.concurrent.*;
 
 /** A native Android frontend to the same registry used by the desktop launcher. */
 public final class MainActivity extends Activity {
+    private static final java.util.concurrent.atomic.AtomicBoolean ACTIVE = new java.util.concurrent.atomic.AtomicBoolean();
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private final List<JSONObject> catalog = new ArrayList<>();
     private LinearLayout list;
@@ -113,11 +114,15 @@ public final class MainActivity extends Activity {
     }
     private interface Task { String run() throws Exception; }
     private void task(String label, Task task) {
-        if (busy) return;
+        if (busy || !ACTIVE.compareAndSet(false, true)) {
+            status.setText(t("上一项操作仍在完成，请稍后刷新。", "The previous operation is still finishing; refresh shortly."));
+            return;
+        }
         busy = true; status.setText(label);
         worker.execute(() -> {
             String result = null; Exception failure = null;
             try { result = task.run(); } catch (Exception ex) { failure = ex; }
+            finally { ACTIVE.set(false); }
             final String outcome = result; final Exception problem = failure;
             runOnUiThread(() -> {
                 busy = false;

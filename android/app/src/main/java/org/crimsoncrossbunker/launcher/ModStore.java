@@ -116,7 +116,10 @@ public final class ModStore {
         Path marker = dir.resolve("catapult_mod.meta");
         if (!Files.exists(marker, LinkOption.NOFOLLOW_LINKS)) return null;
         if (Files.isSymbolicLink(marker) || Files.size(marker) > 1024 * 1024) throw new IOException("Unsafe MOD marker");
-        return new JSONObject(new String(Files.readAllBytes(marker), StandardCharsets.UTF_8));
+        JSONObject data = new JSONObject(new String(Files.readAllBytes(marker), StandardCharsets.UTF_8));
+        if (!modId.equals(data.optString("id")) || !"ccb_registry".equals(data.optString("source_type")))
+            throw new IOException("MOD ownership marker does not match directory");
+        return data;
     }
 
     public void install(JSONObject mod, byte[] zip) throws Exception {
