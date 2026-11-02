@@ -31,6 +31,8 @@ jobs:
 
       - name: Validate CCB integration
         run: .github/scripts/validate_ccb_integration.sh
+      - name: Validate shared signing preparation with disposable data
+        run: python3 -m unittest discover -s tests -p 'test_android_signing.py'
 
   export:
     needs: validate
@@ -172,21 +174,17 @@ jobs:
       - name: Build signed Android release (fail closed without the persistent key)
         working-directory: android
         env:
-          CCB_ANDROID_KEYSTORE_BASE64: ${{ secrets.CCB_ANDROID_KEYSTORE_BASE64 }}
-          CCB_ANDROID_STORE_PASSWORD: ${{ secrets.CCB_ANDROID_STORE_PASSWORD }}
-          CCB_ANDROID_KEY_ALIAS: ${{ secrets.CCB_ANDROID_KEY_ALIAS }}
-          CCB_ANDROID_KEY_PASSWORD: ${{ secrets.CCB_ANDROID_KEY_PASSWORD }}
+          KEYSTORE: ${{ secrets.KEYSTORE }}
+          KEYSTORE_PROPERTIES: ${{ secrets.KEYSTORE_PROPERTIES }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
           set -euo pipefail
-          test -n "$CCB_ANDROID_KEYSTORE_BASE64"
-          test -n "$CCB_ANDROID_STORE_PASSWORD"
-          test -n "$CCB_ANDROID_KEY_ALIAS"
-          test -n "$CCB_ANDROID_KEY_PASSWORD"
-          export CCB_ANDROID_KEYSTORE="$RUNNER_TEMP/ccb-launcher-release.jks"
-          trap 'rm -f "$CCB_ANDROID_KEYSTORE"' EXIT
-          printf '%s' "$CCB_ANDROID_KEYSTORE_BASE64" | base64 --decode > "$CCB_ANDROID_KEYSTORE"
-          chmod 600 "$CCB_ANDROID_KEYSTORE"
-          ./gradlew testReleaseUnitTest lintRelease assembleRelease
+          export CCB_ANDROID_SIGNING_DIR
+          CCB_ANDROID_SIGNING_DIR="$(mktemp -d "$RUNNER_TEMP/ccb-signing.XXXXXX")"
+          trap 'rm -f "$CCB_ANDROID_SIGNING_DIR/release.keystore" "$CCB_ANDROID_SIGNING_DIR/keystore.properties" "$CCB_ANDROID_SIGNING_DIR/release.keystore.asc" "$CCB_ANDROID_SIGNING_DIR/keystore.properties.asc"; rmdir "$CCB_ANDROID_SIGNING_DIR"' EXIT
+          bash ../.github/scripts/prepare_android_signing.sh
+          unset KEYSTORE KEYSTORE_PROPERTIES KEYSTORE_PASSWORD
+          ./gradlew --no-daemon testReleaseUnitTest lintRelease assembleRelease
           "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose app/build/outputs/apk/release/app-release.apk
           mkdir -p ../android-dist
           cp app/build/outputs/apk/release/app-release.apk ../android-dist/CCB-Launcher-android.apk
