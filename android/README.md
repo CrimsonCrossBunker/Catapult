@@ -50,6 +50,14 @@ signing credentials provided through `CCB_ANDROID_KEYSTORE`,
 Do not commit keystores or passwords. Keep the signing key backed up: changing
 it prevents in-place upgrades. `./gradlew assembleRelease` builds the release.
 
+Tag publication now requires both desktop exports and the signed Android build;
+missing signing secrets fail the release rather than silently publishing only
+desktop files. Configure the four repository Actions secrets
+`CCB_ANDROID_KEYSTORE_BASE64`, `CCB_ANDROID_STORE_PASSWORD`,
+`CCB_ANDROID_KEY_ALIAS`, `CCB_ANDROID_KEY_PASSWORD` before tagging. The first is
+the base64-encoded dedicated launcher keystore, never the game's signing key.
+Keep tag/versionCode/versionName changes synchronized for subsequent upgrades.
+
 This is a GitHub-distributed application. Its file-management permission is
 subject to separate Google Play policy review; Play Store approval is not claimed.
 
